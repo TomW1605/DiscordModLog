@@ -1,11 +1,9 @@
 # Use the official Python image from the Docker Hub
-FROM python:3.10
+FROM python:3.12
 LABEL authors="Thomas White"
 
 # Install dependencies
-#RUN pip3 install aiohttp==3.8.2
-RUN pip3 install discord.py
-RUN pip3 install sqlalchemy
+RUN pip3 install discord.py sqlalchemy
 
 # Create and set the working directory
 WORKDIR /app
