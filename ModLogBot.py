@@ -59,8 +59,6 @@ async def on_ready():
 async def on_audit_log_entry_create(entry):
     guild = entry.guild
     log_channel = guild.get_channel(LOG_CHANNEL_ID)
-    if not log_channel:
-        return
 
     action_type = ActionType.UNKNOWN
     reason = entry.reason
@@ -142,14 +140,16 @@ async def on_audit_log_entry_create(entry):
         timeouts = actions.get(ActionType.TIMEOUT, 0) + (1 if action_type == ActionType.TIMEOUT else 0)
         embed.set_footer(text=f"Warnings: {warnings} | Deleted Messages: {deleted_messages} | Timeouts: {timeouts}")
 
-    message = await log_channel.send(embed=embed)
+    message = None
+    if log_channel:
+        message = await log_channel.send(embed=embed)
 
     # Save the log to the database
     log_entry = Log(
         log_time=entry.created_at,
         mod_user_id=entry.user.id,
         target_user_id=entry.target.id if entry.target else None,
-        log_message_id=message.id,
+        log_message_id=message.id if message else None,
         action_type=action_type,
         reason=reason,
         timeout_end_time=timeout_end_time,
