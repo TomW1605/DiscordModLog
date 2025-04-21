@@ -15,6 +15,9 @@ if BOT_TOKEN is None:
 LOG_CHANNEL_ID = os.getenv('LOG_CHANNEL_ID', None) #1362708435447320737  # Replace with the ID of the channel to log actions
 if LOG_CHANNEL_ID is None:
     raise ValueError("Please set the LOG_CHANNEL_ID environment variable.")
+elif not LOG_CHANNEL_ID.isdigit():
+    raise ValueError("LOG_CHANNEL_ID must be a valid channel ID.")
+LOG_CHANNEL_ID = int(LOG_CHANNEL_ID)
 
 intents = discord.Intents.default()
 intents.guilds = True
@@ -51,7 +54,7 @@ class Log(Base):
     log_time = Column(DateTime, nullable=False)
     mod_user_id = Column(Integer, nullable=False)
     target_user_id = Column(Integer, nullable=True)
-    log_message_id = Column(Integer, nullable=False)
+    log_message_id = Column(Integer, nullable=True)
     action_type = Column(Integer, nullable=False)
     reason = Column(String, nullable=True)
     timeout_end_time = Column(DateTime, nullable=True)
@@ -99,7 +102,7 @@ async def on_audit_log_entry_create(entry):
     if entry.action == discord.AuditLogAction.ban:
         embed.title="🚨 Ban Action"
         embed.colour=discord.Color.red()
-        embed.description += f"\n**Reason:** {entry.reason or "No reason provided."}"
+        embed.description += f"\n**Reason:** {entry.reason or 'No reason provided.'}"
         action_type = ActionType.BAN
 
     elif entry.action == discord.AuditLogAction.unban:
@@ -110,7 +113,7 @@ async def on_audit_log_entry_create(entry):
     elif entry.action == discord.AuditLogAction.kick:
         embed.title="🥾 Kick Action"
         embed.colour=discord.Color.orange()
-        embed.description += f"\n**Reason:** {entry.reason or "No reason provided."}"
+        embed.description += f"\n**Reason:** {entry.reason or 'No reason provided.'}"
         action_type = ActionType.KICK
 
     elif entry.action == discord.AuditLogAction.member_update:
@@ -120,7 +123,7 @@ async def on_audit_log_entry_create(entry):
                 timeout_duration += timedelta(seconds=1)
                 embed.title="⏳ Timeout Action"
                 embed.colour=discord.Color.blue()
-                embed.description += f"\n**Reason:** {entry.reason or "No reason provided."}"
+                embed.description += f"\n**Reason:** {entry.reason or 'No reason provided.'}"
                 embed.description += f"\n**Timed Out For:** {str(timeout_duration).split('.')[0]}"
                 action_type = ActionType.TIMEOUT
                 timeout_end_time = entry.after.timed_out_until
