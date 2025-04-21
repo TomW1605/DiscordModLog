@@ -71,7 +71,7 @@ async def on_audit_log_entry_create(entry):
         description=""
     )
 
-    if entry.target:
+    if isinstance(entry.target, discord.Member):
         embed.description += f"**User:** {entry.target.nick or entry.target.display_name} (<@{entry.target.id}>)"
     embed.description += f"\n**Moderator:** {entry.user.nick or entry.user.display_name} (<@{entry.user.id}>)"
 
