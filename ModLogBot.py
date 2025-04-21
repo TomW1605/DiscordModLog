@@ -128,6 +128,9 @@ async def on_audit_log_entry_create(entry):
         action_type = ActionType.MESSAGE_DELETE
         channel_id = entry.extra.channel.id
 
+    if action_type == ActionType.UNKNOWN:
+        return
+
     if isinstance(entry.target, discord.Member):
         results = (
             session.query(Log.action_type, func.count(Log.action_type))
