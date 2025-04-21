@@ -53,6 +53,18 @@ class Log(Base):
 # Create the table
 Base.metadata.create_all(engine)
 
+def delete_old_logs():
+    # Calculate the cutoff date (3 months ago)
+    cutoff_date = datetime.now() - timedelta(days=90)
+
+    # Query and delete logs older than the cutoff date
+    old_logs = session.query(Log).filter(Log.log_time < cutoff_date).all()
+    for log in old_logs:
+        session.delete(log)
+
+    # Commit the changes to the database
+    session.commit()
+
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}!")
@@ -167,6 +179,8 @@ async def on_audit_log_entry_create(entry):
             (action_type in [ActionType.BAN, ActionType.KICK, ActionType.TIMEOUT] and entry.reason is None)):
         await log_channel.send(f"Hey <@{entry.user.id}>, can you add some context to this action?")
 
+    delete_old_logs()
+
 @bot.command()
 @commands.guild_only()
 @commands.is_owner()
@@ -248,5 +262,7 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
     session.commit()
 
     await interaction.response.send_message("Warning Logged", ephemeral=True)
+
+    delete_old_logs()
 
 bot.run(BOT_TOKEN)
