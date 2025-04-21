@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta
 from typing import Optional, Literal
 
@@ -7,8 +8,13 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime, func
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 # Replace with your bot's token and the channel ID where logs will be sent
-BOT_TOKEN = "MTM2MzM4MDYzOTgxODMxNzk5NA.G85DB1.V8hgCZLfmrE4tlSVoK9a8AAAwRi-Cmddl9cpa4"
-LOG_CHANNEL_ID = 1362708435447320737  # Replace with the ID of the channel to log actions
+BOT_TOKEN = os.getenv('BOT_TOKEN', None) #"MTM2MzM4MDYzOTgxODMxNzk5NA.G85DB1.V8hgCZLfmrE4tlSVoK9a8AAAwRi-Cmddl9cpa4"
+if BOT_TOKEN is None:
+    raise ValueError("Please set the BOT_TOKEN environment variable.")
+
+LOG_CHANNEL_ID = os.getenv('LOG_CHANNEL_ID', None) #1362708435447320737  # Replace with the ID of the channel to log actions
+if LOG_CHANNEL_ID is None:
+    raise ValueError("Please set the LOG_CHANNEL_ID environment variable.")
 
 intents = discord.Intents.default()
 intents.guilds = True
