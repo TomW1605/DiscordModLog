@@ -160,6 +160,10 @@ async def on_audit_log_entry_create(entry):
     session.add(log_entry)
     session.commit()
 
+    if (action_type in [ActionType.MUTED, ActionType.MEMBER_DISCONNECT, ActionType.MESSAGE_DELETE] or
+            (action_type in [ActionType.BAN, ActionType.KICK, ActionType.TIMEOUT] and entry.reason is None)):
+        await log_channel.send(f"Hey <@{entry.user.id}>, can you add some context to this action?")
+
 @bot.command()
 @commands.guild_only()
 @commands.is_owner()
