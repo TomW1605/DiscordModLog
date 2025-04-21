@@ -38,8 +38,9 @@ class ActionType:
     WARNING = 10
 
 # Database setup
+os.makedirs('/config', exist_ok=True)
 Base = declarative_base()
-engine = create_engine("sqlite:///mod_logs.db")
+engine = create_engine("sqlite:////config/mod_logs.db")
 Session = sessionmaker(bind=engine)
 session = Session()
 
