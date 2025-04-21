@@ -3,7 +3,8 @@ FROM python:3.12-slim
 LABEL authors="Thomas White"
 
 # Install dependencies
-RUN pip3 install discord.py sqlalchemy
+RUN pip3 install discord.py
+RUN pip3 install sqlalchemy
 
 # Create and set the working directory
 WORKDIR /app
