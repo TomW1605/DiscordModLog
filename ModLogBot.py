@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta
+from typing import Optional, Literal
 
 import discord
 from discord.ext import commands
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey, func
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, func
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 # Replace with your bot's token and the channel ID where logs will be sent
@@ -13,6 +14,7 @@ intents = discord.Intents.default()
 intents.guilds = True
 intents.guild_messages = True
 intents.members = True
+intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -87,7 +89,7 @@ async def on_audit_log_entry_create(entry):
         action_type = ActionType.UNBAN
 
     elif entry.action == discord.AuditLogAction.kick:
-        embed.title="⚠️ Kick Action"
+        embed.title="🥾 Kick Action"
         embed.colour=discord.Color.orange()
         embed.description += f"\n**Reason:** {entry.reason or "No reason provided."}"
         action_type = ActionType.KICK
@@ -135,7 +137,7 @@ async def on_audit_log_entry_create(entry):
             .all()
         )
         actions = {action_type: count for action_type, count in results}
-        warnings = actions.get(ActionType.WARNING, 0) + (1 if action_type == ActionType.WARNING else 0)
+        warnings = actions.get(ActionType.WARNING, 0)
         deleted_messages = actions.get(ActionType.MESSAGE_DELETE, 0) + (1 if action_type == ActionType.MESSAGE_DELETE else 0)
         timeouts = actions.get(ActionType.TIMEOUT, 0) + (1 if action_type == ActionType.TIMEOUT else 0)
         embed.set_footer(text=f"Warnings: {warnings} | Deleted Messages: {deleted_messages} | Timeouts: {timeouts}")
@@ -157,5 +159,87 @@ async def on_audit_log_entry_create(entry):
     )
     session.add(log_entry)
     session.commit()
+
+@bot.command()
+@commands.guild_only()
+@commands.is_owner()
+async def sync(ctx: commands.Context, guilds: commands.Greedy[discord.Object], spec: Optional[Literal["~", "*", "^"]] = None) -> None:
+    if not guilds:
+        if spec == "~":
+            synced = await ctx.bot.tree.sync(guild=ctx.guild)
+        elif spec == "*":
+            ctx.bot.tree.copy_global_to(guild=ctx.guild)
+            synced = await ctx.bot.tree.sync(guild=ctx.guild)
+        elif spec == "^":
+            ctx.bot.tree.clear_commands(guild=ctx.guild)
+            await ctx.bot.tree.sync(guild=ctx.guild)
+            synced = []
+        else:
+            synced = await ctx.bot.tree.sync()
+
+        await ctx.send(
+            f"Synced {len(synced)} commands {'globally' if spec is None else 'to the current guild.'}"
+        )
+        return
+
+    ret = 0
+    for guild in guilds:
+        try:
+            await ctx.bot.tree.sync(guild=guild)
+        except discord.HTTPException:
+            pass
+        else:
+            ret += 1
+
+    await ctx.send(f"Synced the tree to {ret}/{len(guilds)}.")
+
+@bot.tree.command()
+async def warn(interaction: discord.Interaction, user: discord.Member, reason: str) -> None:
+    guild = interaction.guild
+    log_channel = guild.get_channel(LOG_CHANNEL_ID)
+
+    embed = discord.Embed(
+        timestamp=interaction.created_at,
+        title=f"⚠️ Warning Issued",
+        description="",
+        colour=discord.Color.yellow()
+    )
+    embed.description += f"**User:** {user.nick or user.display_name} (<@{user.id}>)"
+    embed.description += f"\n**Moderator:** {interaction.user.nick or interaction.user.display_name} (<@{interaction.user.id}>)"
+    embed.description += f"\n**Reason:** {reason}"
+
+    if user:
+        results = (
+            session.query(Log.action_type, func.count(Log.action_type))
+            .filter(Log.target_user_id == user.id)
+            .filter(Log.log_time >= datetime.now() - timedelta(days=30))
+            .group_by(Log.action_type)
+            .all()
+        )
+        actions = {action_type: count for action_type, count in results}
+        warnings = actions.get(ActionType.WARNING, 0) + 1
+        deleted_messages = actions.get(ActionType.MESSAGE_DELETE, 0)
+        timeouts = actions.get(ActionType.TIMEOUT, 0)
+        embed.set_footer(text=f"Warnings: {warnings} | Deleted Messages: {deleted_messages} | Timeouts: {timeouts}")
+
+    message = None
+    if log_channel:
+        message = await log_channel.send(embed=embed)
+
+    # Save the log to the database
+    log_entry = Log(
+        log_time=interaction.created_at,
+        mod_user_id=interaction.user.id,
+        target_user_id=user.id,
+        log_message_id=message.id if message else None,
+        action_type=ActionType.WARNING,
+        reason=reason,
+        timeout_end_time=None,
+        channel_id=None
+    )
+    session.add(log_entry)
+    session.commit()
+
+    await interaction.response.send_message("Warning Logged", ephemeral=True)
 
 bot.run(BOT_TOKEN)
