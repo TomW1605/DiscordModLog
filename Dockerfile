@@ -3,6 +3,7 @@ FROM python:3.10-slim
 LABEL authors="Thomas White"
 
 # Install dependencies
+RUN pip3 install aiohttp==3.8.2
 #RUN pip3 install discord.py
 RUN pip3 install sqlalchemy
 
