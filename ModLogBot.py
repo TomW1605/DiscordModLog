@@ -8,11 +8,11 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime, func
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 # Replace with your bot's token and the channel ID where logs will be sent
-BOT_TOKEN = os.getenv('BOT_TOKEN', None) #"MTM2MzM4MDYzOTgxODMxNzk5NA.G85DB1.V8hgCZLfmrE4tlSVoK9a8AAAwRi-Cmddl9cpa4"
+BOT_TOKEN = os.getenv('BOT_TOKEN', None) # Replace with the BOT_TOKEN
 if BOT_TOKEN is None:
     raise ValueError("Please set the BOT_TOKEN environment variable.")
 
-LOG_CHANNEL_ID = os.getenv('LOG_CHANNEL_ID', None) #1362708435447320737  # Replace with the ID of the channel to log actions
+LOG_CHANNEL_ID = os.getenv('LOG_CHANNEL_ID', None) # Replace with the ID of the channel to log actions
 if LOG_CHANNEL_ID is None:
     raise ValueError("Please set the LOG_CHANNEL_ID environment variable.")
 elif not LOG_CHANNEL_ID.isdigit():
