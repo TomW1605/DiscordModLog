@@ -15,4 +15,4 @@ COPY . /app
 RUN mkdir -p /config
 
 # Run the command to start the Flask application
-CMD ["python", "ModLogBot.py"]
+CMD ["python", "-u", "ModLogBot.py"]
