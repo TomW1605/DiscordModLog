@@ -281,4 +281,61 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
 
     delete_old_logs()
 
+@bot.tree.command()
+async def history(interaction: discord.Interaction, user: discord.Member) -> None:
+    guild = interaction.guild
+    log_channel = guild.get_channel(LOG_CHANNEL_ID)
+
+    embed = discord.Embed(
+        timestamp=interaction.created_at,
+        title=f"📜 User History",
+        description="",
+        colour=discord.Color.purple()
+    )
+    embed.description += f"**User:** {user.nick or user.display_name} (<@{user.id}>)"
+
+    user_history = (
+        session.query(Log)
+        .filter(Log.guild_id == guild.id)
+        .filter(Log.target_user_id == user.id)
+        .filter(Log.log_time >= datetime.now() - timedelta(days=30))
+        .all()
+    )
+
+    for item in user_history:
+        action = item.action_type
+        action_text = None
+        if action == ActionType.BAN:
+            action_text = "Ban"
+        elif action == ActionType.KICK:
+            action_text = "Kick"
+        elif action == ActionType.TIMEOUT:
+            action_text = "Timeout"
+        elif action == ActionType.MESSAGE_DELETE:
+            action_text = "Message Deleted"
+        elif action == ActionType.WARNING:
+            action_text = "Warning"
+
+        if action_text:
+            embed.description += f"\n**{action_text}:**  https://discord.com/channels/{guild.id}/{LOG_CHANNEL_ID}/{item.log_message_id}"
+
+    results = (
+        session.query(Log.action_type, func.count(Log.action_type))
+        .filter(Log.guild_id == guild.id)
+        .filter(Log.target_user_id == user.id)
+        .filter(Log.log_time >= datetime.now() - timedelta(days=30))
+        .group_by(Log.action_type)
+        .all()
+    )
+    actions = {action_type: count for action_type, count in results}
+    warnings = actions.get(ActionType.WARNING, 0) + 1
+    deleted_messages = actions.get(ActionType.MESSAGE_DELETE, 0)
+    timeouts = actions.get(ActionType.TIMEOUT, 0)
+    embed.set_footer(text=f"Warnings: {warnings} | Deleted Messages: {deleted_messages} | Timeouts: {timeouts}")
+
+    if log_channel:
+        await log_channel.send(embed=embed)
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
 bot.run(BOT_TOKEN)
