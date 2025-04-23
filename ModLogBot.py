@@ -212,6 +212,8 @@ async def on_audit_log_entry_create(entry):
     message = None
     if log_channel:
         message = await log_channel.send(embed=embed)
+    else:
+        print("No log channel set, skipping log message.")
 
     # Save the log to the database
     log_entry = Log(
@@ -232,6 +234,8 @@ async def on_audit_log_entry_create(entry):
         if (action_type in [ActionType.MUTED, ActionType.MEMBER_DISCONNECT, ActionType.MESSAGE_DELETE] or
                 (action_type in [ActionType.BAN, ActionType.KICK, ActionType.TIMEOUT] and entry.reason is None)):
             await log_channel.send(f"Hey <@{entry.user.id}>, can you add some context to this action?")
+    else:
+        print("No log channel set, skipping mod tag message.")
 
     delete_old_logs()
 
@@ -301,6 +305,8 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
     message = None
     if log_channel:
         message = await log_channel.send(embed=embed)
+    else:
+        print("No log channel set, skipping log message.")
 
     # Save the log to the database
     log_entry = Log(
@@ -378,6 +384,8 @@ async def history(interaction: discord.Interaction, user: discord.Member) -> Non
 
     if log_channel:
         await log_channel.send(embed=embed)
+    else:
+        print("No log channel set, skipping log message.")
 
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
