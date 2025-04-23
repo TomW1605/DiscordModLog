@@ -317,7 +317,10 @@ async def history(interaction: discord.Interaction, user: discord.Member) -> Non
             action_text = "Warning"
 
         if action_text:
-            embed.description += f"\n**{action_text}:**  https://discord.com/channels/{guild.id}/{LOG_CHANNEL_ID}/{item.log_message_id}"
+            if guild.id and LOG_CHANNEL_ID and item.log_message_id:
+                embed.description += f"\n**{action_text}:**  https://discord.com/channels/{guild.id}/{LOG_CHANNEL_ID}/{item.log_message_id}"
+            else:
+                embed.description += f"\n**{action_text}**"
 
     results = (
         session.query(Log.action_type, func.count(Log.action_type))
