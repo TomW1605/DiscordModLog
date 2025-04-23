@@ -141,19 +141,19 @@ async def on_audit_log_entry_create(entry):
     log_data = {}
 
     if entry.action == discord.AuditLogAction.ban:
-        embed.title="🚨 Ban Action"
+        embed.title="🚨 Baned"
         embed.colour=discord.Color.red()
         embed.description += f"\n**Reason:** {entry.reason or 'No reason provided.'}"
         action_type = ActionType.BAN
         log_data["reason"] = entry.reason
 
     elif entry.action == discord.AuditLogAction.unban:
-        embed.title="✅ Unban Action"
+        embed.title="✅ Unbaned"
         embed.colour=discord.Color.green()
         action_type = ActionType.UNBAN
 
     elif entry.action == discord.AuditLogAction.kick:
-        embed.title="🥾 Kick Action"
+        embed.title="🥾 Kicked"
         embed.colour=discord.Color.orange()
         embed.description += f"\n**Reason:** {entry.reason or 'No reason provided.'}"
         action_type = ActionType.KICK
@@ -164,7 +164,7 @@ async def on_audit_log_entry_create(entry):
             if entry.after.timed_out_until:
                 timeout_duration = entry.after.timed_out_until - entry.created_at
                 timeout_duration += timedelta(seconds=1)
-                embed.title="⏳ Timeout Action"
+                embed.title="⏳ Timedout"
                 embed.colour=discord.Color.blue()
                 embed.description += f"\n**Reason:** {entry.reason or 'No reason provided.'}"
                 embed.description += f"\n**Timed Out For:** {str(timeout_duration).split('.')[0]}"
@@ -178,12 +178,12 @@ async def on_audit_log_entry_create(entry):
 
         if "mute" in entry.before.__dict__ and entry.before.mute != entry.after.mute:
             mute_status = "Muted" if entry.after.mute else "Unmuted"
-            embed.title=f"🔇 {mute_status} Action"
+            embed.title=f"🔇 {mute_status}"
             embed.colour=discord.Color.orange()
             action_type = ActionType.MUTED if entry.after.mute else ActionType.UNMUTED
 
     elif entry.action == discord.AuditLogAction.member_disconnect:
-        embed.title="🔊 User Disconnected"
+        embed.title="🔊 Disconnected"
         embed.colour=discord.Color.dark_red()
         action_type = ActionType.MEMBER_DISCONNECT
 
