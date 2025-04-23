@@ -6,7 +6,7 @@ from typing import Optional, Literal
 import discord
 import yaml
 from discord.ext import commands
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, func
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, func, JSON
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 intents = discord.Intents.default()
@@ -84,9 +84,7 @@ class Log(Base):
     target_user_id = Column(Integer, nullable=True)
     log_message_id = Column(Integer, nullable=True)
     action_type = Column(Integer, nullable=False)
-    reason = Column(String, nullable=True)
-    timeout_end_time = Column(DateTime, nullable=True)
-    channel_id = Column(Integer, nullable=True)
+    log_data = Column(JSON, nullable=False)
 
 # Create the table
 Base.metadata.create_all(engine)
@@ -140,11 +138,14 @@ async def on_audit_log_entry_create(entry):
         embed.description += f"**User:** {entry.target.nick or entry.target.display_name} (<@{entry.target.id}>)"
     embed.description += f"\n**Moderator:** {entry.user.nick or entry.user.display_name} (<@{entry.user.id}>)"
 
+    log_data = {}
+
     if entry.action == discord.AuditLogAction.ban:
         embed.title="🚨 Ban Action"
         embed.colour=discord.Color.red()
         embed.description += f"\n**Reason:** {entry.reason or 'No reason provided.'}"
         action_type = ActionType.BAN
+        log_data["reason"] = entry.reason
 
     elif entry.action == discord.AuditLogAction.unban:
         embed.title="✅ Unban Action"
@@ -156,6 +157,7 @@ async def on_audit_log_entry_create(entry):
         embed.colour=discord.Color.orange()
         embed.description += f"\n**Reason:** {entry.reason or 'No reason provided.'}"
         action_type = ActionType.KICK
+        log_data["reason"] = entry.reason
 
     elif entry.action == discord.AuditLogAction.member_update:
         if "timed_out_until" in entry.before.__dict__ and entry.before.timed_out_until != entry.after.timed_out_until:
@@ -167,7 +169,8 @@ async def on_audit_log_entry_create(entry):
                 embed.description += f"\n**Reason:** {entry.reason or 'No reason provided.'}"
                 embed.description += f"\n**Timed Out For:** {str(timeout_duration).split('.')[0]}"
                 action_type = ActionType.TIMEOUT
-                timeout_end_time = entry.after.timed_out_until
+                log_data["reason"] = entry.reason
+                log_data["timeout_end_time"] = entry.after.timed_out_until.isoformat()
             else:
                 embed.title="⏳ Timeout Removed"
                 embed.colour=discord.Color.blue()
@@ -189,7 +192,7 @@ async def on_audit_log_entry_create(entry):
         embed.colour = discord.Color.dark_red()
         embed.description += f"\n**Channel:** <#{entry.extra.channel.id}>"
         action_type = ActionType.MESSAGE_DELETE
-        channel_id = entry.extra.channel.id
+        log_data["channel_id"] = entry.extra.channel.id
 
     if action_type == ActionType.UNKNOWN:
         return
@@ -223,9 +226,7 @@ async def on_audit_log_entry_create(entry):
         target_user_id=entry.target.id if isinstance(entry.target, discord.Member) else None,
         log_message_id=message.id if message else None,
         action_type=action_type,
-        reason=reason,
-        timeout_end_time=timeout_end_time,
-        channel_id=channel_id
+        log_data=log_data,
     )
     session.add(log_entry)
     session.commit()
@@ -287,6 +288,8 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
     embed.description += f"\n**Moderator:** {interaction.user.nick or interaction.user.display_name} (<@{interaction.user.id}>)"
     embed.description += f"\n**Reason:** {reason}"
 
+    log_data = {"reason": reason}
+
     if user:
         results = (
             session.query(Log.action_type, func.count(Log.action_type))
@@ -316,9 +319,7 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
         target_user_id=user.id,
         log_message_id=message.id if message else None,
         action_type=ActionType.WARNING,
-        reason=reason,
-        timeout_end_time=None,
-        channel_id=None
+        log_data=log_data,
     )
     session.add(log_entry)
     session.commit()
