@@ -2,10 +2,10 @@ bot:
     token: # Your bot token here
 
 servers:
-    - server_1:
+    server_1:
         id: # Your server ID here
         log_channel_id: # Your server log channel ID here
 
-    - server_2:
+    server_2:
         id: # Your server ID here
         log_channel_id: # Your server log channel ID here
