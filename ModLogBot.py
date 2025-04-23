@@ -137,6 +137,8 @@ async def on_audit_log_entry_create(entry):
 
     if isinstance(entry.target, discord.Member):
         embed.description += f"**User:** {entry.target.nick or entry.target.display_name} (<@{entry.target.id}>)"
+    if isinstance(entry.target, discord.User):
+        embed.description += f"**User:** {entry.target.display_name} (<@{entry.target.id}>)"
     embed.description += f"\n**Moderator:** {entry.user.nick or entry.user.display_name} (<@{entry.user.id}>)"
 
     log_data = {}
@@ -238,7 +240,7 @@ async def on_audit_log_entry_create(entry):
         log_time=entry.created_at,
         guild_id=guild.id,
         mod_user_id=entry.user.id,
-        target_user_id=entry.target.id if isinstance(entry.target, discord.Member) else None,
+        target_user_id=entry.target.id if isinstance(entry.target, discord.Member) or isinstance(entry.target, discord.User) else None,
         log_message_id=message.id if message else None,
         action_type=action_type,
         log_data=log_data,
