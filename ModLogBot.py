@@ -194,6 +194,9 @@ async def on_audit_log_entry_create(entry):
 
             action_type = ActionType.NICKNAME_CHANGED
 
+            log_data["old_nick"] = entry.before.nick or user.display_name
+            log_data["new_nick"] = entry.after.nick or user.display_name
+
     elif entry.action == discord.AuditLogAction.member_disconnect:
         embed.title="🔊 Disconnected"
         embed.colour=discord.Color.dark_red()
