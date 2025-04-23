@@ -1,23 +1,13 @@
 import os
+import shutil
 from datetime import datetime, timedelta
 from typing import Optional, Literal
 
 import discord
+import yaml
 from discord.ext import commands
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, func
 from sqlalchemy.orm import sessionmaker, declarative_base
-
-# Replace with your bot's token and the channel ID where logs will be sent
-BOT_TOKEN = os.getenv('BOT_TOKEN', None) # Replace with the BOT_TOKEN
-if BOT_TOKEN is None:
-    raise ValueError("Please set the BOT_TOKEN environment variable.")
-
-LOG_CHANNEL_ID = os.getenv('LOG_CHANNEL_ID', None) # Replace with the ID of the channel to log actions
-if LOG_CHANNEL_ID is None:
-    raise ValueError("Please set the LOG_CHANNEL_ID environment variable.")
-elif not LOG_CHANNEL_ID.isdigit():
-    raise ValueError("LOG_CHANNEL_ID must be a valid channel ID.")
-LOG_CHANNEL_ID = int(LOG_CHANNEL_ID)
 
 intents = discord.Intents.default()
 intents.guilds = True
@@ -46,6 +36,43 @@ Base = declarative_base()
 engine = create_engine("sqlite:////config/mod_logs.db")
 Session = sessionmaker(bind=engine)
 session = Session()
+
+# Config setup
+if not os.path.exists('/config/config.yml'):
+    shutil.copyfile("config.example.yml", "/config/config.yml")
+
+with open("/config/config.yml", mode='r') as f:
+    config = yaml.safe_load(f)
+
+BOT_TOKEN = os.getenv('BOT_TOKEN', None)
+if BOT_TOKEN is None:
+    try:
+        BOT_TOKEN = config["bot"]["token"]
+    except KeyError:
+        pass
+if BOT_TOKEN is None:
+    raise ValueError("BOT_TOKEN is not set in config.yml or environment variables.")
+
+SERVERS = {}
+for server in config["servers"]:
+    if config["servers"][server]["id"] and config["servers"][server]["log_channel_id"]:
+        server_id = config["servers"][server]["id"]
+        log_channel_id = config["servers"][server]["log_channel_id"]
+        try:
+            server_id = int(server_id)
+        except ValueError:
+            print(f"Server ID `{server_id}` is not a valid server ID. Skipping.")
+            continue
+        try:
+            log_channel_id = int(log_channel_id)
+        except ValueError:
+            print(f"Log Channel ID `{log_channel_id}` is not a valid channel ID. Skipping.")
+            continue
+
+        SERVERS[server_id] = {
+            "name": server,
+            "log_channel_id": log_channel_id
+        }
 
 # Log model
 class Log(Base):
@@ -76,6 +103,19 @@ def delete_old_logs():
     # Commit the changes to the database
     session.commit()
 
+def get_server(server_id: int):
+    try:
+        return SERVERS[server_id]
+    except KeyError:
+        print(f"Server with ID {server_id} not found in config")
+        return None
+
+def get_log_channel_id(server_id: int):
+    try:
+        return get_server(server_id)['log_channel_id']
+    except TypeError:
+        return None
+
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}!")
@@ -83,7 +123,7 @@ async def on_ready():
 @bot.event
 async def on_audit_log_entry_create(entry):
     guild = entry.guild
-    log_channel = guild.get_channel(LOG_CHANNEL_ID)
+    log_channel = guild.get_channel(get_log_channel_id(guild.id))
 
     action_type = ActionType.UNKNOWN
     reason = entry.reason
@@ -231,7 +271,7 @@ async def sync(ctx: commands.Context, guilds: commands.Greedy[discord.Object], s
 @bot.tree.command()
 async def warn(interaction: discord.Interaction, user: discord.Member, reason: str) -> None:
     guild = interaction.guild
-    log_channel = guild.get_channel(LOG_CHANNEL_ID)
+    log_channel = guild.get_channel(get_log_channel_id(guild.id))
 
     embed = discord.Embed(
         timestamp=interaction.created_at,
@@ -284,7 +324,7 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
 @bot.tree.command()
 async def history(interaction: discord.Interaction, user: discord.Member) -> None:
     guild = interaction.guild
-    log_channel = guild.get_channel(LOG_CHANNEL_ID)
+    log_channel = guild.get_channel(get_log_channel_id(guild.id))
 
     embed = discord.Embed(
         timestamp=interaction.created_at,
@@ -317,8 +357,8 @@ async def history(interaction: discord.Interaction, user: discord.Member) -> Non
             action_text = "Warning"
 
         if action_text:
-            if guild.id and LOG_CHANNEL_ID and item.log_message_id:
-                embed.description += f"\n**{action_text}:**  https://discord.com/channels/{guild.id}/{LOG_CHANNEL_ID}/{item.log_message_id}"
+            if guild.id and get_log_channel_id(guild.id) and item.log_message_id:
+                embed.description += f"\n**{action_text}:**  https://discord.com/channels/{guild.id}/{get_log_channel_id(guild.id)}/{item.log_message_id}"
             else:
                 embed.description += f"\n**{action_text}**"
 
