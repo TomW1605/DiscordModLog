@@ -3,7 +3,7 @@ FROM python:3.12
 LABEL authors="Thomas White"
 
 # Install dependencies
-RUN pip3 install discord.py sqlalchemy
+RUN pip3 install discord.py sqlalchemy pyaml
 
 # Create and set the working directory
 WORKDIR /app
