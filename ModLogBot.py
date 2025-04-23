@@ -52,6 +52,7 @@ class Log(Base):
     __tablename__ = "logs"
     log_id = Column(Integer, primary_key=True, autoincrement=True)
     log_time = Column(DateTime, nullable=False)
+    guild_id = Column(Integer, nullable=False)
     mod_user_id = Column(Integer, nullable=False)
     target_user_id = Column(Integer, nullable=True)
     log_message_id = Column(Integer, nullable=True)
@@ -156,6 +157,7 @@ async def on_audit_log_entry_create(entry):
     if isinstance(entry.target, discord.Member):
         results = (
             session.query(Log.action_type, func.count(Log.action_type))
+            .filter(Log.guild_id == guild.id)
             .filter(Log.target_user_id == entry.target.id)
             .filter(Log.log_time >= datetime.now() - timedelta(days=30))
             .group_by(Log.action_type)
@@ -174,6 +176,7 @@ async def on_audit_log_entry_create(entry):
     # Save the log to the database
     log_entry = Log(
         log_time=entry.created_at,
+        guild_id=guild.id,
         mod_user_id=entry.user.id,
         target_user_id=entry.target.id if isinstance(entry.target, discord.Member) else None,
         log_message_id=message.id if message else None,
@@ -243,6 +246,7 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
     if user:
         results = (
             session.query(Log.action_type, func.count(Log.action_type))
+            .filter(Log.guild_id == guild.id)
             .filter(Log.target_user_id == user.id)
             .filter(Log.log_time >= datetime.now() - timedelta(days=30))
             .group_by(Log.action_type)
@@ -261,6 +265,7 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
     # Save the log to the database
     log_entry = Log(
         log_time=interaction.created_at,
+        guild_id=guild.id,
         mod_user_id=interaction.user.id,
         target_user_id=user.id,
         log_message_id=message.id if message else None,
