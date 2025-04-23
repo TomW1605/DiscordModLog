@@ -29,6 +29,7 @@ class ActionType:
     MEMBER_DISCONNECT = 8
     MESSAGE_DELETE = 9
     WARNING = 10
+    NICKNAME_CHANGED = 11
 
 # Database setup
 os.makedirs('/config', exist_ok=True)
@@ -182,6 +183,20 @@ async def on_audit_log_entry_create(entry):
             embed.colour=discord.Color.orange()
             action_type = ActionType.MUTED if entry.after.mute else ActionType.UNMUTED
 
+        if "nick" in entry.before.__dict__ and entry.before.nick != entry.after.nick and entry.target.id != entry.user.id:
+            embed.title=f"📝 Nickname Changed"
+            embed.colour=discord.Color.orange()
+
+            user = await bot.fetch_user(entry.target.id)
+
+            embed.description += f"\n**Before:** {entry.before.nick or user.display_name}"
+            embed.description += f"\n**After:** {entry.after.nick or user.display_name}"
+
+            action_type = ActionType.NICKNAME_CHANGED
+
+            log_data["old_nick"] = entry.before.nick or user.display_name
+            log_data["new_nick"] = entry.after.nick or user.display_name
+
     elif entry.action == discord.AuditLogAction.member_disconnect:
         embed.title="🔊 Disconnected"
         embed.colour=discord.Color.dark_red()
@@ -232,7 +247,7 @@ async def on_audit_log_entry_create(entry):
     session.commit()
 
     if log_channel:
-        if (action_type in [ActionType.MUTED, ActionType.MEMBER_DISCONNECT, ActionType.MESSAGE_DELETE] or
+        if (action_type in [ActionType.MUTED, ActionType.MEMBER_DISCONNECT, ActionType.MESSAGE_DELETE, ActionType.NICKNAME_CHANGED] or
                 (action_type in [ActionType.BAN, ActionType.KICK, ActionType.TIMEOUT] and entry.reason is None)):
             await log_channel.send(f"Hey <@{entry.user.id}>, can you add some context to this action?")
     else:
