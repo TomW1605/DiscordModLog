@@ -328,7 +328,7 @@ async def history(interaction: discord.Interaction, user: discord.Member) -> Non
         .all()
     )
     actions = {action_type: count for action_type, count in results}
-    warnings = actions.get(ActionType.WARNING, 0) + 1
+    warnings = actions.get(ActionType.WARNING, 0)
     deleted_messages = actions.get(ActionType.MESSAGE_DELETE, 0)
     timeouts = actions.get(ActionType.TIMEOUT, 0)
     embed.set_footer(text=f"Warnings: {warnings} | Deleted Messages: {deleted_messages} | Timeouts: {timeouts}")
