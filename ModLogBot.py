@@ -4,9 +4,10 @@ from datetime import datetime, timedelta
 from typing import Optional, Literal
 
 import discord
+import sqlalchemy
 import yaml
 from discord.ext import commands
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, func, JSON
+from sqlalchemy import create_engine, Column, Integer, DateTime, func, JSON
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 intents = discord.Intents.default()
@@ -100,6 +101,23 @@ class Log(Base):
 # Create the table
 Base.metadata.create_all(engine)
 
+def verify_db_tables(conn, metadata):
+    """checks that the tables declared in metadata are actually in the db"""
+    for table in metadata.tables.values():
+        check = sqlalchemy.MetaData()
+        check.reflect(conn, table.schema, True, (table.name,))
+        check = check.tables[table.key]
+        for column in table.c:
+            if column.name not in check.c:
+                raise Exception("table %s does not contain column %s" %
+                                (table.key, column.name))
+            check_column = check.c[column.name]
+            if not isinstance(check_column.type, column.type.__class__):
+                raise Exception("column %s.%s is %s but expected %s" %
+                                (table.key, column.name, check_column.type, column.type))
+
+verify_db_tables(engine.connect(), Base.metadata)
+
 def delete_old_logs():
     # Calculate the cutoff date (3 months ago)
     cutoff_date = datetime.now() - timedelta(days=90)
@@ -148,9 +166,6 @@ async def on_audit_log_entry_create(entry):
             print(f"Bot does not have permission to send messages and embed links in log channel '{log_channel.name}' ({log_channel.id}). Skipping log message.")
 
     action_type = ActionType.UNKNOWN
-    reason = entry.reason
-    timeout_end_time = None
-    channel_id = None
 
     embed = discord.Embed(
         timestamp=entry.created_at,
