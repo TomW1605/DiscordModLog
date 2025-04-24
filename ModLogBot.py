@@ -31,6 +31,16 @@ class ActionType:
     WARNING = 10
     NICKNAME_CHANGED = 11
 
+need_reason = [
+                  ActionType.MUTED,
+                  ActionType.MEMBER_DISCONNECT,
+                  ActionType.MESSAGE_DELETE,
+                  ActionType.NICKNAME_CHANGED,
+                  ActionType.BAN,
+                  ActionType.KICK,
+                  ActionType.TIMEOUT
+              ]
+
 # Database setup
 os.makedirs('/config', exist_ok=True)
 Base = declarative_base()
@@ -112,6 +122,9 @@ def get_server(server_id: int):
 def get_log_channel_id(server_id: int):
     try:
         return get_server(server_id)['log_channel_id']
+    except KeyError:
+        print(f"Log channel ID not found for server {server_id}")
+        return None
     except TypeError:
         return None
 
@@ -123,6 +136,16 @@ async def on_ready():
 async def on_audit_log_entry_create(entry):
     guild = entry.guild
     log_channel = guild.get_channel(get_log_channel_id(guild.id))
+
+    able_to_send = True
+    if not log_channel:
+        able_to_send = False
+        print(f"Log channel not found for guild '{guild.name}' ({guild.id}). Skipping log message.")
+    else:
+        permissions = log_channel.permissions_for(guild.me)
+        if not (permissions.send_messages and permissions.embed_links):
+            able_to_send = False
+            print(f"Bot does not have permission to send messages and embed links in log channel '{log_channel.name}' ({log_channel.id}). Skipping log message.")
 
     action_type = ActionType.UNKNOWN
     reason = entry.reason
@@ -230,10 +253,10 @@ async def on_audit_log_entry_create(entry):
         embed.set_footer(text=f"Warnings: {warnings} | Deleted Messages: {deleted_messages} | Timeouts: {timeouts}")
 
     message = None
-    if log_channel:
+    if able_to_send:
         message = await log_channel.send(embed=embed)
-    else:
-        print("No log channel set, skipping log message.")
+        if action_type in need_reason and entry.reason is None:
+            await log_channel.send(f"Hey <@{entry.user.id}>, can you add some context to this action?")
 
     # Save the log to the database
     log_entry = Log(
@@ -247,13 +270,6 @@ async def on_audit_log_entry_create(entry):
     )
     session.add(log_entry)
     session.commit()
-
-    if log_channel:
-        if (action_type in [ActionType.MUTED, ActionType.MEMBER_DISCONNECT, ActionType.MESSAGE_DELETE, ActionType.NICKNAME_CHANGED] or
-                (action_type in [ActionType.BAN, ActionType.KICK, ActionType.TIMEOUT] and entry.reason is None)):
-            await log_channel.send(f"Hey <@{entry.user.id}>, can you add some context to this action?")
-    else:
-        print("No log channel set, skipping mod tag message.")
 
     delete_old_logs()
 
@@ -295,6 +311,16 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
     guild = interaction.guild
     log_channel = guild.get_channel(get_log_channel_id(guild.id))
 
+    able_to_send = True
+    if not log_channel:
+        able_to_send = False
+        print(f"Log channel not found for guild '{guild.name}' ({guild.id}). Skipping log message.")
+    else:
+        permissions = log_channel.permissions_for(guild.me)
+        if not (permissions.send_messages and permissions.embed_links):
+            able_to_send = False
+            print(f"Bot does not have permission to send messages and embed links in log channel '{log_channel.name}' ({log_channel.id}). Skipping log message.")
+
     embed = discord.Embed(
         timestamp=interaction.created_at,
         title=f"⚠️ Warning Issued",
@@ -323,10 +349,8 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
         embed.set_footer(text=f"Warnings: {warnings} | Deleted Messages: {deleted_messages} | Timeouts: {timeouts}")
 
     message = None
-    if log_channel:
+    if able_to_send:
         message = await log_channel.send(embed=embed)
-    else:
-        print("No log channel set, skipping log message.")
 
     # Save the log to the database
     log_entry = Log(
