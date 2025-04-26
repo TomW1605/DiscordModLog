@@ -189,19 +189,19 @@ async def on_audit_log_entry_create(entry):
 
     if entry.action == discord.AuditLogAction.ban:
         embed.title="🚨 Baned"
-        embed.colour=discord.Color.red()
+        embed.colour=discord.Colour.red()
         embed.description += f"\n**Reason:** {entry.reason or 'No reason provided.'}"
         action_type = ActionType.BAN
         log_data["reason"] = entry.reason
 
     elif entry.action == discord.AuditLogAction.unban:
         embed.title="✅ Unbaned"
-        embed.colour=discord.Color.green()
+        embed.colour=discord.Colour.red()
         action_type = ActionType.UNBAN
 
     elif entry.action == discord.AuditLogAction.kick:
         embed.title="🥾 Kicked"
-        embed.colour=discord.Color.orange()
+        embed.colour=discord.Colour.red()
         embed.description += f"\n**Reason:** {entry.reason or 'No reason provided.'}"
         action_type = ActionType.KICK
         log_data["reason"] = entry.reason
@@ -212,7 +212,7 @@ async def on_audit_log_entry_create(entry):
                 timeout_duration = entry.after.timed_out_until - entry.created_at
                 timeout_duration += timedelta(seconds=1)
                 embed.title="⏳ Timedout"
-                embed.colour=discord.Color.blue()
+                embed.colour=discord.Colour.orange()
                 embed.description += f"\n**Reason:** {entry.reason or 'No reason provided.'}"
                 embed.description += f"\n**Timed Out For:** {str(timeout_duration).split('.')[0]}"
                 action_type = ActionType.TIMEOUT
@@ -220,18 +220,18 @@ async def on_audit_log_entry_create(entry):
                 log_data["timeout_end_time"] = entry.after.timed_out_until.isoformat()
             else:
                 embed.title="⏳ Timeout Removed"
-                embed.colour=discord.Color.blue()
+                embed.colour=discord.Colour.orange()
                 action_type = ActionType.TIMEOUT_REMOVED
 
         if "mute" in entry.before.__dict__ and entry.before.mute != entry.after.mute:
             mute_status = "Muted" if entry.after.mute else "Unmuted"
             embed.title=f"🔇 {mute_status}"
-            embed.colour=discord.Color.orange()
+            embed.colour=discord.Colour.purple()
             action_type = ActionType.MUTED if entry.after.mute else ActionType.UNMUTED
 
         if "nick" in entry.before.__dict__ and entry.before.nick != entry.after.nick and entry.target.id != entry.user.id:
             embed.title=f"📝 Nickname Changed"
-            embed.colour=discord.Color.orange()
+            embed.colour=discord.Colour.purple()
 
             user = await bot.fetch_user(entry.target.id)
 
@@ -245,12 +245,12 @@ async def on_audit_log_entry_create(entry):
 
     elif entry.action == discord.AuditLogAction.member_disconnect:
         embed.title="🔊 Disconnected From Voice"
-        embed.colour=discord.Color.dark_red()
+        embed.colour=discord.Colour.purple()
         action_type = ActionType.MEMBER_DISCONNECT
 
     elif entry.action == discord.AuditLogAction.message_delete:
         embed.title = "🗑️ Message Deleted"
-        embed.colour = discord.Color.dark_red()
+        embed.colour = discord.Colour.magenta()
         embed.description += f"\n**Channel:** <#{entry.extra.channel.id}>"
         action_type = ActionType.MESSAGE_DELETE
         log_data["channel_id"] = entry.extra.channel.id
@@ -350,7 +350,7 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
         timestamp=interaction.created_at,
         title=f"⚠️ Warning Issued",
         description="",
-        colour=discord.Color.yellow()
+        colour=discord.Colour.yellow()
     )
     embed.description += f"**User:** {user.nick or user.display_name} (<@{user.id}>)"
     embed.description += f"\n**Moderator:** {interaction.user.nick or interaction.user.display_name} (<@{interaction.user.id}>)"
@@ -405,7 +405,7 @@ async def history(interaction: discord.Interaction, user: discord.Member) -> Non
         timestamp=interaction.created_at,
         title=f"📜 User History",
         description="",
-        colour=discord.Color.purple()
+        colour=discord.Colour.light_grey()
     )
     embed.description += f"**User:** {user.nick or user.display_name} (<@{user.id}>)"
 
