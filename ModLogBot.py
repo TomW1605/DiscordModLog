@@ -265,7 +265,9 @@ async def on_audit_log_entry_create(entry):
         warnings = actions.get(ActionType.WARNING, 0)
         deleted_messages = actions.get(ActionType.MESSAGE_DELETE, 0) + (1 if action_type == ActionType.MESSAGE_DELETE else 0)
         timeouts = actions.get(ActionType.TIMEOUT, 0) + (1 if action_type == ActionType.TIMEOUT else 0)
-        embed.set_footer(text=f"Warnings: {warnings} | Deleted Messages: {deleted_messages} | Timeouts: {timeouts}")
+        kicks = actions.get(ActionType.KICK, 0) + (1 if action_type == ActionType.KICK else 0)
+        bans = actions.get(ActionType.BAN, 0) + (1 if action_type == ActionType.BAN else 0)
+        embed.set_footer(text=f"Warnings: {warnings} | Deleted Messages: {deleted_messages} | Timeouts: {timeouts} | Kicks: {kicks} | Bans: {bans}")
 
     message = None
     if able_to_send:
@@ -361,7 +363,9 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
         warnings = actions.get(ActionType.WARNING, 0) + 1
         deleted_messages = actions.get(ActionType.MESSAGE_DELETE, 0)
         timeouts = actions.get(ActionType.TIMEOUT, 0)
-        embed.set_footer(text=f"Warnings: {warnings} | Deleted Messages: {deleted_messages} | Timeouts: {timeouts}")
+        kicks = actions.get(ActionType.KICK, 0)
+        bans = actions.get(ActionType.BAN, 0)
+        embed.set_footer(text=f"Warnings: {warnings} | Deleted Messages: {deleted_messages} | Timeouts: {timeouts} | Kicks: {kicks} | Bans: {bans}")
 
     message = None
     if able_to_send:
@@ -437,7 +441,9 @@ async def history(interaction: discord.Interaction, user: discord.Member) -> Non
     warnings = actions.get(ActionType.WARNING, 0)
     deleted_messages = actions.get(ActionType.MESSAGE_DELETE, 0)
     timeouts = actions.get(ActionType.TIMEOUT, 0)
-    embed.set_footer(text=f"Warnings: {warnings} | Deleted Messages: {deleted_messages} | Timeouts: {timeouts}")
+    kicks = actions.get(ActionType.KICK, 0)
+    bans = actions.get(ActionType.BAN, 0)
+    embed.set_footer(text=f"Warnings: {warnings} | Deleted Messages: {deleted_messages} | Timeouts: {timeouts} | Kicks: {kicks} | Bans: {bans}")
 
     if log_channel:
         await log_channel.send(embed=embed)
