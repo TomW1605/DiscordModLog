@@ -280,6 +280,8 @@ async def on_audit_log_entry_create(entry):
         message = await log_channel.send(embed=embed)
         if action_type in need_reason and entry.reason is None:
             await log_channel.send(f"Hey <@{entry.user.id}>, can you add some context to this action?")
+        elif not (isinstance(entry.target, discord.Member) or isinstance(entry.target, discord.User)):
+            await log_channel.send(f"Hey <@{entry.user.id}>, can you add some context to this action?")
 
     # Save the log to the database
     log_entry = Log(
