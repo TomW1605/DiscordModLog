@@ -33,14 +33,14 @@ class ActionType:
     NICKNAME_CHANGED = 11
 
 need_reason = [
-                  ActionType.MUTED,
-                  ActionType.MEMBER_DISCONNECT,
-                  ActionType.MESSAGE_DELETE,
-                  ActionType.NICKNAME_CHANGED,
-                  ActionType.BAN,
-                  ActionType.KICK,
-                  ActionType.TIMEOUT
-              ]
+    ActionType.MUTED,
+    ActionType.MEMBER_DISCONNECT,
+    ActionType.MESSAGE_DELETE,
+    ActionType.NICKNAME_CHANGED,
+    ActionType.BAN,
+    ActionType.KICK,
+    ActionType.TIMEOUT
+]
 
 # Database setup
 os.makedirs('/config', exist_ok=True)
