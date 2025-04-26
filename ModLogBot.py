@@ -258,7 +258,7 @@ async def on_audit_log_entry_create(entry):
     if action_type == ActionType.UNKNOWN:
         return
 
-    if isinstance(entry.target, discord.Member):
+    if isinstance(entry.target, discord.Member) or isinstance(entry.target, discord.User):
         results = (
             session.query(Log.action_type, func.count(Log.action_type))
             .filter(Log.guild_id == guild.id)
