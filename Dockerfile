@@ -2,6 +2,12 @@
 FROM python:3.12
 LABEL authors="Thomas White"
 
+ARG BUILD_DATE
+ENV BUILD_DATE=$BUILD_DATE
+
+ARG VCS_REF
+ENV VERSION=$VCS_REF
+
 # Install dependencies
 RUN pip3 install discord.py sqlalchemy pyaml
 

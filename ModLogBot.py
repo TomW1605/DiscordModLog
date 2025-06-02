@@ -10,6 +10,9 @@ from discord.ext import commands
 from sqlalchemy import create_engine, Column, Integer, DateTime, func, JSON
 from sqlalchemy.orm import sessionmaker, declarative_base
 
+BUILD_DATE = os.getenv('BUILD_DATE', None)
+VERSION = os.getenv('VERSION', None)
+
 intents = discord.Intents.default()
 intents.guilds = True
 intents.guild_messages = True
@@ -148,6 +151,8 @@ def get_log_channel_id(server_id: int):
 
 @bot.event
 async def on_ready():
+    print(f"Build date: {BUILD_DATE}")
+    print(f"Version: {VERSION}")
     print(f"Logged in as {bot.user}!")
 
 @bot.event
@@ -459,5 +464,9 @@ async def history(interaction: discord.Interaction, user: discord.Member) -> Non
         print("No log channel set, skipping log message.")
 
     await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command()
+async def version(interaction: discord.Interaction) -> None:
+    await interaction.response.send_message(f"Bot online\nVersion: {VERSION}\nBuild date: {BUILD_DATE}")
 
 bot.run(BOT_TOKEN)
