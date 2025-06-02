@@ -84,9 +84,18 @@ for server in config["servers"]:
             print(f"Log Channel ID `{log_channel_id}` is not a valid channel ID. Skipping.")
             continue
 
+        ignored_channels = []
+        if "ignored_channels" in config["servers"][server]:
+            for ignored_channel in config["servers"][server]["ignored_channels"]:
+                try:
+                    ignored_channels.append(int(ignored_channel))
+                except ValueError:
+                    print(f"Ignored Channel ID `{ignored_channel}` is not a valid channel ID. Skipping.")
+
         SERVERS[server_id] = {
             "name": server,
-            "log_channel_id": log_channel_id
+            "log_channel_id": log_channel_id,
+            "ignored_channels": ignored_channels
         }
 
 # Log model
@@ -148,6 +157,15 @@ def get_log_channel_id(server_id: int):
         return None
     except TypeError:
         return None
+
+def get_ignored_channels(server_id: int):
+    try:
+        return get_server(server_id)['ignored_channels']
+    except KeyError:
+        print(f"Ignored channel not found for server {server_id}")
+        return []
+    except TypeError:
+        return []
 
 @bot.event
 async def on_ready():
@@ -254,6 +272,9 @@ async def on_audit_log_entry_create(entry):
         action_type = ActionType.MEMBER_DISCONNECT
 
     elif entry.action == discord.AuditLogAction.message_delete:
+        if entry.extra.channel.id in get_ignored_channels(guild.id):
+            print(f"Message delete action ignored for channel `{entry.extra.channel.name} ({entry.extra.channel.id})` in guild `{guild.name} ({guild.id})`.")
+            return
         embed.title = "🗑️ Message Deleted"
         embed.colour = discord.Colour.magenta()
         embed.description += f"\n**Channel:** <#{entry.extra.channel.id}>"

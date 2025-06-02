@@ -5,6 +5,9 @@ servers:
     server_1:
         id: # Your server ID here
         log_channel_id: # Your server log channel ID here
+        ignored_channels:
+            - # List of channel IDs to ignore, e.g., 123456789012345678
+            - # Another channel ID to ignore
 
     server_2:
         id: # Your server ID here
