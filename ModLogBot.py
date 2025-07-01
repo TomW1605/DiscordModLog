@@ -213,11 +213,14 @@ async def on_audit_log_entry_create(entry):
     elif isinstance(entry.target, discord.User):
         embed.description += f"**User:** {entry.target.display_name} (<@{entry.target.id}>)"
     elif hasattr(entry, 'target') and hasattr(entry.target, 'id'):
-        entry.target = await bot.fetch_user(entry.target.id)
-        if entry.target:
-            embed.description += f"**User:** {entry.target.display_name} (<@{entry.target.id}>)"
-        else:
-            embed.description += f"**User:** <@{entry.target.id}>"
+        try:
+            entry.target = await bot.fetch_user(entry.target.id)
+            if entry.target:
+                embed.description += f"**User:** {entry.target.display_name} (<@{entry.target.id}>)"
+            else:
+                embed.description += f"**User:** <@{entry.target.id}>"
+        except discord.NotFound:
+            embed.description += f"**User:** <@{entry.target.id}> (User not found)"
     embed.description += f"\n**Moderator:** {entry.user.nick or entry.user.display_name} (<@{entry.user.id}>)"
 
     log_data = {}
