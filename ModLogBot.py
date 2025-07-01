@@ -68,35 +68,47 @@ if BOT_TOKEN is None:
 if BOT_TOKEN is None:
     raise ValueError("BOT_TOKEN is not set in config.yml or environment variables.")
 
-SERVERS = {}
-for server in config["servers"]:
-    if config["servers"][server]["id"] and config["servers"][server]["log_channel_id"]:
-        server_id = config["servers"][server]["id"]
-        log_channel_id = config["servers"][server]["log_channel_id"]
-        try:
-            server_id = int(server_id)
-        except ValueError:
-            print(f"Server ID `{server_id}` is not a valid server ID. Skipping.")
-            continue
-        try:
-            log_channel_id = int(log_channel_id)
-        except ValueError:
-            print(f"Log Channel ID `{log_channel_id}` is not a valid channel ID. Skipping.")
-            continue
+def check_config():
+    servers = {}
+    for server in config["servers"]:
+        if config["servers"][server]["id"] and config["servers"][server]["log_channel_id"]:
+            server_id = config["servers"][server]["id"]
+            try:
+                server_id = int(server_id)
+            except ValueError:
+                print(f"Server ID `{server_id}` is not a valid server ID. Skipping.")
+                continue
 
-        ignored_channels = []
-        if "ignored_channels" in config["servers"][server]:
-            for ignored_channel in config["servers"][server]["ignored_channels"]:
-                try:
-                    ignored_channels.append(int(ignored_channel))
-                except ValueError:
-                    print(f"Ignored Channel ID `{ignored_channel}` is not a valid channel ID. Skipping.")
+            log_channel_id = config["servers"][server]["log_channel_id"]
+            try:
+                log_channel_id = int(log_channel_id)
+            except ValueError:
+                print(f"Log Channel ID `{log_channel_id}` is not a valid channel ID. Skipping.")
+                continue
 
-        SERVERS[server_id] = {
-            "name": server,
-            "log_channel_id": log_channel_id,
-            "ignored_channels": ignored_channels
-        }
+            report_channel_id = config["servers"][server].get("report_channel_id", None)
+            try:
+                report_channel_id = int(report_channel_id)
+            except (ValueError, TypeError):
+                print(f"Report Channel ID `{log_channel_id}` is not a valid channel ID. Skipping.")
+                pass
+
+            ignored_channels = []
+            if "ignored_channels" in config["servers"][server]:
+                for ignored_channel in config["servers"][server]["ignored_channels"]:
+                    try:
+                        ignored_channels.append(int(ignored_channel))
+                    except ValueError:
+                        print(f"Ignored Channel ID `{ignored_channel}` is not a valid channel ID. Skipping.")
+
+            servers[server_id] = {
+                "name": server,
+                "log_channel_id": log_channel_id,
+                "report_channel_id": report_channel_id,
+                "ignored_channels": ignored_channels
+            }
+    return servers
+SERVERS = check_config()
 
 # Log model
 class Log(Base):
