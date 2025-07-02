@@ -6,6 +6,7 @@ from typing import Optional, Literal
 import discord
 import sqlalchemy
 import yaml
+from discord import app_commands
 from discord.ext import commands
 from sqlalchemy import create_engine, Column, Integer, DateTime, func, JSON
 from sqlalchemy.orm import sessionmaker, declarative_base
@@ -373,6 +374,7 @@ async def sync(ctx: commands.Context, guilds: commands.Greedy[discord.Object], s
     await ctx.send(f"Synced the tree to {ret}/{len(guilds)}.")
 
 @bot.tree.command()
+@app_commands.guild_only()
 async def warn(interaction: discord.Interaction, user: discord.Member, reason: str) -> None:
     guild = interaction.guild
     log_channel = guild.get_channel(get_log_channel_id(guild.id))
@@ -438,6 +440,7 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
     delete_old_logs()
 
 @bot.tree.command()
+@app_commands.guild_only()
 async def history(interaction: discord.Interaction, user: discord.Member) -> None:
     guild = interaction.guild
     log_channel = guild.get_channel(get_log_channel_id(guild.id))
