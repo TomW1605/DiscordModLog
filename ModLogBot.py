@@ -78,22 +78,26 @@ def check_config():
             try:
                 server_id = int(server_id)
             except ValueError:
-                print(f"Server ID `{server_id}` is not a valid server ID. Skipping.")
+                print(f"Server ID `{server_id}` is not a valid server ID. Skipping server.")
                 continue
 
-            log_channel_id = config["servers"][server]["log_channel_id"]
+            log_channel_id = config["servers"][server].get("log_channel_id", None)
             try:
                 log_channel_id = int(log_channel_id)
             except ValueError:
-                print(f"Log Channel ID `{log_channel_id}` is not a valid channel ID. Skipping.")
-                continue
+                print(f"Log Channel ID `{log_channel_id}` is not a valid channel ID. Logging disabled for server `{server_id}`.")
 
             report_channel_id = config["servers"][server].get("report_channel_id", None)
             try:
                 report_channel_id = int(report_channel_id)
             except (ValueError, TypeError):
-                print(f"Report Channel ID `{log_channel_id}` is not a valid channel ID. Skipping.")
-                pass
+                print(f"Report Channel ID `{report_channel_id}` is not a valid channel ID. Reporting disabled for server `{server_id}`")
+
+            report_role_ping_id = config["servers"][server].get("report_role_ping_id", None)
+            try:
+                report_role_ping_id = int(report_role_ping_id)
+            except (ValueError, TypeError):
+                print(f"Report Ping ID `{report_role_ping_id}` is not a valid ID. Report pings disabled for server `{server_id}`")
 
             ignored_channels = []
             if "ignored_channels" in config["servers"][server]:
@@ -101,12 +105,13 @@ def check_config():
                     try:
                         ignored_channels.append(int(ignored_channel))
                     except ValueError:
-                        print(f"Ignored Channel ID `{ignored_channel}` is not a valid channel ID. Skipping.")
+                        print(f"Ignored Channel ID `{ignored_channel}` is not a valid channel ID. Skipping channel.")
 
             servers[server_id] = {
                 "name": server,
                 "log_channel_id": log_channel_id,
                 "report_channel_id": report_channel_id,
+                "report_role_ping_id": report_role_ping_id,
                 "ignored_channels": ignored_channels
             }
     return servers
@@ -176,7 +181,16 @@ def get_report_channel_id(server_id: int):
     try:
         return get_server(server_id)['report_channel_id']
     except KeyError:
-        print(f"Log channel ID not found for server {server_id}")
+        print(f"Report channel ID not found for server {server_id}")
+        return None
+    except TypeError:
+        return None
+
+def get_report_role_ping_id(server_id: int):
+    try:
+        return get_server(server_id)['report_role_ping_id']
+    except KeyError:
+        print(f"Report ping ID not found for server {server_id}")
         return None
     except TypeError:
         return None
@@ -553,6 +567,8 @@ async def report(interaction: discord.Interaction, server: str, comment: str, me
         await interaction.response.send_message("Report channel not found.")
         return
 
+    report_role_ping_id = get_report_role_ping_id(int(server))
+
     embed = discord.Embed(
         timestamp=interaction.created_at,
         title=f"Member Report",
@@ -566,7 +582,10 @@ async def report(interaction: discord.Interaction, server: str, comment: str, me
     if attachment:
         embed.set_image(url=attachment.url)
 
-    await report_channel.send(embed=embed)
+    if report_role_ping_id:
+        await report_channel.send(f"<@&{report_role_ping_id}> Member Report", embed=embed)
+    else:
+        await report_channel.send(embed=embed)
     await interaction.response.send_message(f"Thank you for your report! It has been sent to the server staff.")
 
 @report.autocomplete('server')

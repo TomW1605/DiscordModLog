@@ -5,7 +5,8 @@ servers:
     server_1:
         id: # Your server ID here
         log_channel_id: # Your server log channel ID here
-        report_channel_id: # Your server report channel ID here
+        report_channel_id: # Your server report channel ID here. Optional
+        report_role_ping_id: # ID to ping for reports. Optional. Ignored if report_channel_id is not set
         ignored_channels:
             - # List of channel IDs to ignore, e.g., 123456789012345678
             - # Another channel ID to ignore
