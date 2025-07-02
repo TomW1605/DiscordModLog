@@ -341,7 +341,7 @@ async def on_audit_log_entry_create(entry):
     delete_old_logs()
 
 @bot.command()
-@commands.guild_only()
+# @commands.guild_only()
 @commands.is_owner()
 async def sync(ctx: commands.Context, guilds: commands.Greedy[discord.Object], spec: Optional[Literal["~", "*", "^"]] = None) -> None:
     if not guilds:
