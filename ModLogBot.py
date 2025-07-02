@@ -1,7 +1,7 @@
 import os
 import shutil
 from datetime import datetime, timedelta
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 
 import discord
 import sqlalchemy
@@ -516,11 +516,14 @@ async def history(interaction: discord.Interaction, user: discord.Member) -> Non
 
 @bot.tree.command()
 @app_commands.dm_only()
-@app_commands.choices(server=[Choice(name=server['name'], value=str(server_id)) for server_id, server in SERVERS.items() if server['report_channel_id'] is not None])
-async def report(interaction: discord.Interaction, server: Choice[str], comment: str, message_link: str=None, attachment: discord.Attachment=None) -> None:
-    report_channel_id = get_report_channel_id(int(server.value))
+async def report(interaction: discord.Interaction, server: str, comment: str, message_link: str=None, attachment: discord.Attachment=None) -> None:
+    if not server.isdigit() or int(server) not in SERVERS:
+        await interaction.response.send_message("Invalid server selected.")
+        return
+
+    report_channel_id = get_report_channel_id(int(server))
     if not report_channel_id:
-        await interaction.response.send_message("Report channel not set for this server.", ephemeral=True)
+        await interaction.response.send_message("Report channel not set for this server.")
         return
 
     embed = discord.Embed(
@@ -538,6 +541,17 @@ async def report(interaction: discord.Interaction, server: Choice[str], comment:
 
     await bot.get_channel(report_channel_id).send(embed=embed)
     await interaction.response.send_message(f"Thank you for your report! It has been sent to the server staff.")
+
+@report.autocomplete('server')
+async def server_autocomplete(interaction: discord.Interaction, current: str) -> List[Choice[str]]:
+    report_servers = [server_id for server_id, server in SERVERS.items() if server['report_channel_id'] is not None]
+    mutual_servers = interaction.user.mutual_guilds
+    # return [Choice(name=server.name, value=str(server.id)) for server in mutual_servers if server.id in report_servers]
+    servers = [server for server in mutual_servers if server.id in report_servers]
+    return [
+        app_commands.Choice(name=server.name, value=str(server.id))
+        for server in servers if current.lower() in server.name.lower()
+    ]
 
 @bot.tree.command()
 async def version(interaction: discord.Interaction) -> None:
