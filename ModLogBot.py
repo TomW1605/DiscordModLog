@@ -7,6 +7,7 @@ import discord
 import sqlalchemy
 import yaml
 from discord import app_commands
+from discord.app_commands import Choice
 from discord.ext import commands
 from sqlalchemy import create_engine, Column, Integer, DateTime, func, JSON
 from sqlalchemy.orm import sessionmaker, declarative_base
@@ -165,6 +166,15 @@ def get_server(server_id: int):
 def get_log_channel_id(server_id: int):
     try:
         return get_server(server_id)['log_channel_id']
+    except KeyError:
+        print(f"Log channel ID not found for server {server_id}")
+        return None
+    except TypeError:
+        return None
+
+def get_report_channel_id(server_id: int):
+    try:
+        return get_server(server_id)['report_channel_id']
     except KeyError:
         print(f"Log channel ID not found for server {server_id}")
         return None
@@ -503,6 +513,31 @@ async def history(interaction: discord.Interaction, user: discord.Member) -> Non
         print("No log channel set, skipping log message.")
 
     await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command()
+@app_commands.dm_only()
+@app_commands.choices(server=[Choice(name=server['name'], value=str(server_id)) for server_id, server in SERVERS.items() if server['report_channel_id'] is not None])
+async def report(interaction: discord.Interaction, server: Choice[str], comment: str, message_link: str=None, attachment: discord.Attachment=None) -> None:
+    report_channel_id = get_report_channel_id(int(server.value))
+    if not report_channel_id:
+        await interaction.response.send_message("Report channel not set for this server.", ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        timestamp=interaction.created_at,
+        title=f"Member Report",
+        description=""
+    )
+
+    embed.description += f"**Reporter:** {interaction.user.display_name} (<@{interaction.user.id}>)"
+    embed.description += f"\n**Comment:** {comment}"
+    if message_link:
+        embed.description += f"\n**Message:** {message_link}"
+    if attachment:
+        embed.set_image(url=attachment.url)
+
+    await bot.get_channel(report_channel_id).send(embed=embed)
+    await interaction.response.send_message(f"Thank you for your report! It has been sent to the server staff.")
 
 @bot.tree.command()
 async def version(interaction: discord.Interaction) -> None:
