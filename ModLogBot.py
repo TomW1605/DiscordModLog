@@ -350,6 +350,28 @@ async def on_audit_log_entry_create(entry):
 
     delete_old_logs()
 
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    if isinstance(message.channel, discord.DMChannel):
+        await handle_dm(message)
+        return
+
+    if isinstance(message.guild, discord.Guild):
+        await handle_guild_message(message)
+        return
+
+    return
+
+async def handle_dm(message):
+    print(f"Received DM from {message.author.name}: {message.content}")
+    await message.reply("Thank you for your message! Please use the `/report` command to report issues")
+
+async def handle_guild_message(message):
+    pass
+
 @bot.command()
 # @commands.guild_only()
 @commands.is_owner()
