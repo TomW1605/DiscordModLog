@@ -526,6 +526,11 @@ async def report(interaction: discord.Interaction, server: str, comment: str, me
         await interaction.response.send_message("Report channel not set for this server.")
         return
 
+    report_channel = bot.get_channel(report_channel_id)
+    if not report_channel:
+        await interaction.response.send_message("Report channel not found.")
+        return
+
     embed = discord.Embed(
         timestamp=interaction.created_at,
         title=f"Member Report",
@@ -539,7 +544,7 @@ async def report(interaction: discord.Interaction, server: str, comment: str, me
     if attachment:
         embed.set_image(url=attachment.url)
 
-    await bot.get_channel(report_channel_id).send(embed=embed)
+    await report_channel.send(embed=embed)
     await interaction.response.send_message(f"Thank you for your report! It has been sent to the server staff.")
 
 @report.autocomplete('server')
