@@ -371,13 +371,11 @@ async def on_message(message):
 
     if isinstance(message.channel, discord.DMChannel):
         await handle_dm(message)
-        return
 
     if isinstance(message.guild, discord.Guild):
         await handle_guild_message(message)
-        return
 
-    return
+    await bot.process_commands(message)
 
 async def handle_dm(message):
     print(f"Received DM from {message.author.name}: {message.content}")
