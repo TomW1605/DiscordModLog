@@ -379,7 +379,7 @@ async def on_message(message):
 
 async def handle_dm(message):
     print(f"Received DM from {message.author.name}: {message.content}")
-    await message.reply("Thank you for your message! Please use the `/report` command to report issues")
+    await message.reply("Thank you for your message! Please use the `/report` command to report issues", mention_author=False)
 
 async def handle_guild_message(message):
     pass
