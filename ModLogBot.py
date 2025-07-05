@@ -552,16 +552,19 @@ async def history(interaction: discord.Interaction, user: discord.Member) -> Non
 @app_commands.dm_only()
 async def report(interaction: discord.Interaction, server: str, comment: str, message_link: str=None, attachment: discord.Attachment=None) -> None:
     if not server.isdigit() or int(server) not in SERVERS:
+        print(f"Invalid server ID: {server}")
         await interaction.response.send_message("Invalid server selected.")
         return
 
     report_channel_id = get_report_channel_id(int(server))
     if not report_channel_id:
+        print(f"Report channel not set for server `{server}`.")
         await interaction.response.send_message("Report channel not set for this server.")
         return
 
     report_channel = bot.get_channel(report_channel_id)
     if not report_channel:
+        print(f"Report channel with ID `{report_channel_id}` not found in server `{server}`.")
         await interaction.response.send_message("Report channel not found.")
         return
 
