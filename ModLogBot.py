@@ -61,6 +61,12 @@ if not os.path.exists('/config/config.yml'):
 with open("/config/config.yml", mode='r') as f:
     config = yaml.safe_load(f)
 
+def load_config():
+    with open("config.yml", mode='r') as f:
+        config = yaml.safe_load(f)
+    return config
+config = load_config()
+
 BOT_TOKEN = os.getenv('BOT_TOKEN', None)
 if BOT_TOKEN is None:
     try:
@@ -70,10 +76,10 @@ if BOT_TOKEN is None:
 if BOT_TOKEN is None:
     raise ValueError("BOT_TOKEN is not set in config.yml or environment variables.")
 
-def check_config():
+def load_servers():
     servers = {}
     for server in config["servers"]:
-        if config["servers"][server]["id"] and config["servers"][server]["log_channel_id"]:
+        if config["servers"][server]["id"]:
             server_id = config["servers"][server]["id"]
             try:
                 server_id = int(server_id)
@@ -84,7 +90,7 @@ def check_config():
             log_channel_id = config["servers"][server].get("log_channel_id", None)
             try:
                 log_channel_id = int(log_channel_id)
-            except ValueError:
+            except (ValueError, TypeError):
                 print(f"Log Channel ID `{log_channel_id}` is not a valid channel ID. Logging disabled for server `{server_id}`.")
 
             report_channel_id = config["servers"][server].get("report_channel_id", None)
@@ -104,7 +110,7 @@ def check_config():
                 for ignored_channel in config["servers"][server]["ignored_channels"]:
                     try:
                         ignored_channels.append(int(ignored_channel))
-                    except ValueError:
+                    except (ValueError, TypeError):
                         print(f"Ignored Channel ID `{ignored_channel}` is not a valid channel ID. Skipping channel.")
 
             servers[server_id] = {
@@ -115,7 +121,7 @@ def check_config():
                 "ignored_channels": ignored_channels
             }
     return servers
-SERVERS = check_config()
+SERVERS = load_servers()
 
 # Log model
 class Log(Base):
@@ -417,6 +423,15 @@ async def sync(ctx: commands.Context, guilds: commands.Greedy[discord.Object], s
 
     await ctx.send(f"Synced the tree to {ret}/{len(guilds)}.")
 
+@bot.command()
+@commands.is_owner()
+async def reload_servers(ctx: commands.Context) -> None:
+    global config
+    config = load_config()
+    global SERVERS
+    SERVERS = load_servers()
+    await ctx.send(f"Servers reloaded.")
+
 @bot.tree.command()
 @app_commands.guild_only()
 async def warn(interaction: discord.Interaction, user: discord.Member, reason: str) -> None:
@@ -551,9 +566,16 @@ async def history(interaction: discord.Interaction, user: discord.Member) -> Non
 @bot.tree.command()
 @app_commands.dm_only()
 async def report(interaction: discord.Interaction, server: str, comment: str, message_link: str=None, attachment: discord.Attachment=None) -> None:
+    print(interaction.data)
+    if not server.isdigit() or int(server) not in SERVERS:
+        for mutual_server in interaction.user.mutual_guilds:
+            if mutual_server.name == server:
+                server = mutual_server.id
+                break
+
     if not server.isdigit() or int(server) not in SERVERS:
         print(f"Invalid server ID: {server}")
-        await interaction.response.send_message("Invalid server selected.")
+        await interaction.response.send_message("Invalid server selected. If you took some time to submit yor report, the server selection may have timed out. Please edit your report and select the server again.")
         return
 
     report_channel_id = get_report_channel_id(int(server))
