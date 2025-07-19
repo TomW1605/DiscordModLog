@@ -1,11 +1,13 @@
 import os
 import shutil
 from datetime import datetime, timedelta
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 
 import discord
 import sqlalchemy
 import yaml
+from discord import app_commands
+from discord.app_commands import Choice
 from discord.ext import commands
 from sqlalchemy import create_engine, Column, Integer, DateTime, func, JSON
 from sqlalchemy.orm import sessionmaker, declarative_base
@@ -68,35 +70,52 @@ if BOT_TOKEN is None:
 if BOT_TOKEN is None:
     raise ValueError("BOT_TOKEN is not set in config.yml or environment variables.")
 
-SERVERS = {}
-for server in config["servers"]:
-    if config["servers"][server]["id"] and config["servers"][server]["log_channel_id"]:
-        server_id = config["servers"][server]["id"]
-        log_channel_id = config["servers"][server]["log_channel_id"]
-        try:
-            server_id = int(server_id)
-        except ValueError:
-            print(f"Server ID `{server_id}` is not a valid server ID. Skipping.")
-            continue
-        try:
-            log_channel_id = int(log_channel_id)
-        except ValueError:
-            print(f"Log Channel ID `{log_channel_id}` is not a valid channel ID. Skipping.")
-            continue
+def check_config():
+    servers = {}
+    for server in config["servers"]:
+        if config["servers"][server]["id"] and config["servers"][server]["log_channel_id"]:
+            server_id = config["servers"][server]["id"]
+            try:
+                server_id = int(server_id)
+            except ValueError:
+                print(f"Server ID `{server_id}` is not a valid server ID. Skipping server.")
+                continue
 
-        ignored_channels = []
-        if "ignored_channels" in config["servers"][server]:
-            for ignored_channel in config["servers"][server]["ignored_channels"]:
-                try:
-                    ignored_channels.append(int(ignored_channel))
-                except ValueError:
-                    print(f"Ignored Channel ID `{ignored_channel}` is not a valid channel ID. Skipping.")
+            log_channel_id = config["servers"][server].get("log_channel_id", None)
+            try:
+                log_channel_id = int(log_channel_id)
+            except ValueError:
+                print(f"Log Channel ID `{log_channel_id}` is not a valid channel ID. Logging disabled for server `{server_id}`.")
 
-        SERVERS[server_id] = {
-            "name": server,
-            "log_channel_id": log_channel_id,
-            "ignored_channels": ignored_channels
-        }
+            report_channel_id = config["servers"][server].get("report_channel_id", None)
+            try:
+                report_channel_id = int(report_channel_id)
+            except (ValueError, TypeError):
+                print(f"Report Channel ID `{report_channel_id}` is not a valid channel ID. Reporting disabled for server `{server_id}`")
+
+            report_role_ping_id = config["servers"][server].get("report_role_ping_id", None)
+            try:
+                report_role_ping_id = int(report_role_ping_id)
+            except (ValueError, TypeError):
+                print(f"Report Ping ID `{report_role_ping_id}` is not a valid ID. Report pings disabled for server `{server_id}`")
+
+            ignored_channels = []
+            if "ignored_channels" in config["servers"][server]:
+                for ignored_channel in config["servers"][server]["ignored_channels"]:
+                    try:
+                        ignored_channels.append(int(ignored_channel))
+                    except ValueError:
+                        print(f"Ignored Channel ID `{ignored_channel}` is not a valid channel ID. Skipping channel.")
+
+            servers[server_id] = {
+                "name": server,
+                "log_channel_id": log_channel_id,
+                "report_channel_id": report_channel_id,
+                "report_role_ping_id": report_role_ping_id,
+                "ignored_channels": ignored_channels
+            }
+    return servers
+SERVERS = check_config()
 
 # Log model
 class Log(Base):
@@ -158,6 +177,24 @@ def get_log_channel_id(server_id: int):
     except TypeError:
         return None
 
+def get_report_channel_id(server_id: int):
+    try:
+        return get_server(server_id)['report_channel_id']
+    except KeyError:
+        print(f"Report channel ID not found for server {server_id}")
+        return None
+    except TypeError:
+        return None
+
+def get_report_role_ping_id(server_id: int):
+    try:
+        return get_server(server_id)['report_role_ping_id']
+    except KeyError:
+        print(f"Report ping ID not found for server {server_id}")
+        return None
+    except TypeError:
+        return None
+
 def get_ignored_channels(server_id: int):
     try:
         return get_server(server_id)['ignored_channels']
@@ -201,11 +238,14 @@ async def on_audit_log_entry_create(entry):
     elif isinstance(entry.target, discord.User):
         embed.description += f"**User:** {entry.target.display_name} (<@{entry.target.id}>)"
     elif hasattr(entry, 'target') and hasattr(entry.target, 'id'):
-        entry.target = await bot.fetch_user(entry.target.id)
-        if entry.target:
-            embed.description += f"**User:** {entry.target.display_name} (<@{entry.target.id}>)"
-        else:
-            embed.description += f"**User:** <@{entry.target.id}>"
+        try:
+            entry.target = await bot.fetch_user(entry.target.id)
+            if entry.target:
+                embed.description += f"**User:** {entry.target.display_name} (<@{entry.target.id}>)"
+            else:
+                embed.description += f"**User:** <@{entry.target.id}>"
+        except discord.NotFound:
+            embed.description += f"**User:** <@{entry.target.id}> (User not found)"
     embed.description += f"\n**Moderator:** {entry.user.nick or entry.user.display_name} (<@{entry.user.id}>)"
 
     log_data = {}
@@ -324,8 +364,28 @@ async def on_audit_log_entry_create(entry):
 
     delete_old_logs()
 
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    if isinstance(message.channel, discord.DMChannel):
+        await handle_dm(message)
+
+    if isinstance(message.guild, discord.Guild):
+        await handle_guild_message(message)
+
+    await bot.process_commands(message)
+
+async def handle_dm(message):
+    print(f"Received DM from {message.author.name}: {message.content}")
+    await message.reply("Thank you for your message! Please use the `/report` command to report issues", mention_author=False)
+
+async def handle_guild_message(message):
+    pass
+
 @bot.command()
-@commands.guild_only()
+# @commands.guild_only()
 @commands.is_owner()
 async def sync(ctx: commands.Context, guilds: commands.Greedy[discord.Object], spec: Optional[Literal["~", "*", "^"]] = None) -> None:
     if not guilds:
@@ -358,6 +418,7 @@ async def sync(ctx: commands.Context, guilds: commands.Greedy[discord.Object], s
     await ctx.send(f"Synced the tree to {ret}/{len(guilds)}.")
 
 @bot.tree.command()
+@app_commands.guild_only()
 async def warn(interaction: discord.Interaction, user: discord.Member, reason: str) -> None:
     guild = interaction.guild
     log_channel = guild.get_channel(get_log_channel_id(guild.id))
@@ -423,6 +484,7 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
     delete_old_logs()
 
 @bot.tree.command()
+@app_commands.guild_only()
 async def history(interaction: discord.Interaction, user: discord.Member) -> None:
     guild = interaction.guild
     log_channel = guild.get_channel(get_log_channel_id(guild.id))
@@ -485,6 +547,58 @@ async def history(interaction: discord.Interaction, user: discord.Member) -> Non
         print("No log channel set, skipping log message.")
 
     await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command()
+@app_commands.dm_only()
+async def report(interaction: discord.Interaction, server: str, comment: str, message_link: str=None, attachment: discord.Attachment=None) -> None:
+    if not server.isdigit() or int(server) not in SERVERS:
+        print(f"Invalid server ID: {server}")
+        await interaction.response.send_message("Invalid server selected.")
+        return
+
+    report_channel_id = get_report_channel_id(int(server))
+    if not report_channel_id:
+        print(f"Report channel not set for server `{server}`.")
+        await interaction.response.send_message("Report channel not set for this server.")
+        return
+
+    report_channel = bot.get_channel(report_channel_id)
+    if not report_channel:
+        print(f"Report channel with ID `{report_channel_id}` not found in server `{server}`.")
+        await interaction.response.send_message("Report channel not found.")
+        return
+
+    report_role_ping_id = get_report_role_ping_id(int(server))
+
+    embed = discord.Embed(
+        timestamp=interaction.created_at,
+        title=f"Member Report",
+        description=""
+    )
+
+    embed.description += f"**Reporter:** {interaction.user.display_name} (<@{interaction.user.id}>)"
+    embed.description += f"\n**Comment:** {comment}"
+    if message_link:
+        embed.description += f"\n**Message:** {message_link}"
+    if attachment:
+        embed.set_image(url=attachment.url)
+
+    if report_role_ping_id:
+        await report_channel.send(f"<@&{report_role_ping_id}> Member Report", embed=embed)
+    else:
+        await report_channel.send(embed=embed)
+    await interaction.response.send_message(f"Thank you for your report! It has been sent to the server staff.")
+
+@report.autocomplete('server')
+async def server_autocomplete(interaction: discord.Interaction, current: str) -> List[Choice[str]]:
+    report_servers = [server_id for server_id, server in SERVERS.items() if server['report_channel_id'] is not None]
+    mutual_servers = interaction.user.mutual_guilds
+    # return [Choice(name=server.name, value=str(server.id)) for server in mutual_servers if server.id in report_servers]
+    servers = [server for server in mutual_servers if server.id in report_servers]
+    return [
+        app_commands.Choice(name=server.name, value=str(server.id))
+        for server in servers if current.lower() in server.name.lower()
+    ]
 
 @bot.tree.command()
 async def version(interaction: discord.Interaction) -> None:
