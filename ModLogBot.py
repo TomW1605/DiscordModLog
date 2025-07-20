@@ -118,7 +118,7 @@ def load_servers():
                 "ignored_channels": ignored_channels
             }
     return servers
-SERVERS = load_servers()
+SERVERS = None
 
 # Log model
 class Log(Base):
@@ -149,8 +149,6 @@ def verify_db_tables(conn, metadata):
             if not isinstance(check_column.type, column.type.__class__):
                 raise Exception("column %s.%s is %s but expected %s" %
                                 (table.key, column.name, check_column.type, column.type))
-
-verify_db_tables(engine.connect(), Base.metadata)
 
 def delete_old_logs():
     # Calculate the cutoff date (3 months ago)
@@ -653,4 +651,9 @@ async def server_autocomplete(interaction: discord.Interaction, current: str) ->
 async def version(interaction: discord.Interaction) -> None:
     await interaction.response.send_message(f"Bot online\nVersion: {VERSION}\nBuild date: {BUILD_DATE}")
 
-bot.run(BOT_TOKEN)
+if __name__ == "__main__":
+    verify_db_tables(engine.connect(), Base.metadata)
+
+    # global SERVERS
+    SERVERS = load_servers()
+    bot.run(BOT_TOKEN)
