@@ -563,11 +563,14 @@ async def history(interaction: discord.Interaction, user: discord.Member | disco
     embed.set_footer(text=f"Warnings: {warnings} | Deleted Messages: {deleted_messages} | Timeouts: {timeouts} | Kicks: {kicks} | Bans: {bans}")
 
     if log_channel:
-        await log_channel.send(embed=embed)
+        if interaction.channel.id == log_channel.id:
+            await interaction.response.send_message(embed=embed)
+        else:
+            await log_channel.send(embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
     else:
-        print("No log channel set, skipping log message.")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command()
 @app_commands.dm_only()
