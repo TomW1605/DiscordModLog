@@ -434,8 +434,12 @@ async def reload_servers(ctx: commands.Context) -> None:
     SERVERS = load_servers()
     await ctx.send(f"Servers reloaded.")
 
-@bot.tree.command()
+@bot.tree.command(description="Log a warning to a user (does not send a message to the user)")
 @app_commands.guild_only()
+@app_commands.describe(
+    user="User warned",
+    reason="Reason for the warning"
+)
 async def warn(interaction: discord.Interaction, user: discord.Member, reason: str) -> None:
     guild = interaction.guild
     log_channel = guild.get_channel(get_log_channel_id(guild.id))
@@ -500,8 +504,9 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
 
     delete_old_logs()
 
-@bot.tree.command()
+@bot.tree.command(description="View the moderation history of a user")
 @app_commands.guild_only()
+@app_commands.describe(user="User to view history for")
 async def history(interaction: discord.Interaction, user: discord.Member | discord.User) -> None:
     guild = interaction.guild
     log_channel = guild.get_channel(get_log_channel_id(guild.id))
@@ -572,12 +577,19 @@ async def history(interaction: discord.Interaction, user: discord.Member | disco
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
-@bot.tree.command()
+@bot.tree.command(description="Send a report to server staff")
 @app_commands.dm_only()
+@app_commands.describe(
+    server="Server to report in",
+    report_comment="The report itself",
+    user="User to report (optional)",
+    message_link="Link to the message being reported (optional)",
+    attachment="Attachment related to the report (optional)"
+)
 async def report(
         interaction: discord.Interaction,
         server: str,
-        comment: str,
+        report_comment: str,
         user: discord.User = None,
         message_link: str=None,
         attachment: discord.Attachment=None
@@ -617,7 +629,7 @@ async def report(
     embed.description += f"**Reporter:** {interaction.user.display_name} (<@{interaction.user.id}>)"
     if user:
         embed.description += f"\n**Reported User:** {user.display_name} (<@{user.id}>)"
-    embed.description += f"\n**Comment:** {comment}"
+    embed.description += f"\n**Comment:** {report_comment}"
     if message_link:
         embed.description += f"\n**Message:** {message_link}"
     if attachment:
