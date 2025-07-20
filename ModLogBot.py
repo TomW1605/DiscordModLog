@@ -649,7 +649,7 @@ async def server_autocomplete(interaction: discord.Interaction, current: str) ->
         for server in servers if current.lower() in server.name.lower()
     ]
 
-@bot.tree.command()
+@bot.tree.command(description="Check the bot version and build date")
 async def version(interaction: discord.Interaction) -> None:
     await interaction.response.send_message(f"Bot online\nVersion: {VERSION}\nBuild date: {BUILD_DATE}")
 
