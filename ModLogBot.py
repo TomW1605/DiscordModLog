@@ -574,7 +574,14 @@ async def history(interaction: discord.Interaction, user: discord.Member | disco
 
 @bot.tree.command()
 @app_commands.dm_only()
-async def report(interaction: discord.Interaction, server: str, comment: str, message_link: str=None, attachment: discord.Attachment=None) -> None:
+async def report(
+        interaction: discord.Interaction,
+        server: str,
+        comment: str,
+        user: discord.User = None,
+        message_link: str=None,
+        attachment: discord.Attachment=None
+) -> None:
     print(interaction.data)
     if not server.isdigit() or int(server) not in SERVERS:
         for mutual_server in interaction.user.mutual_guilds:
@@ -608,6 +615,8 @@ async def report(interaction: discord.Interaction, server: str, comment: str, me
     )
 
     embed.description += f"**Reporter:** {interaction.user.display_name} (<@{interaction.user.id}>)"
+    if user:
+        embed.description += f"\n**Reported User:** {user.display_name} (<@{user.id}>)"
     embed.description += f"\n**Comment:** {comment}"
     if message_link:
         embed.description += f"\n**Message:** {message_link}"
