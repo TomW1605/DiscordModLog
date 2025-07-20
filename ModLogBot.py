@@ -502,7 +502,7 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
 
 @bot.tree.command()
 @app_commands.guild_only()
-async def history(interaction: discord.Interaction, user: discord.Member) -> None:
+async def history(interaction: discord.Interaction, user: discord.Member | discord.User) -> None:
     guild = interaction.guild
     log_channel = guild.get_channel(get_log_channel_id(guild.id))
 
@@ -512,7 +512,11 @@ async def history(interaction: discord.Interaction, user: discord.Member) -> Non
         description="",
         colour=discord.Colour.light_grey()
     )
-    embed.description += f"**User:** {user.nick or user.display_name} (<@{user.id}>)"
+    mod = interaction.user
+    embed.description += f"**Requester:** {mod.nick or mod.display_name} (<@{mod.id}>)"
+    embed.description += f"\n**User:** {getattr(user, 'nick', None) or user.display_name} (<@{user.id}>)"
+    if not isinstance(user, discord.Member):
+        embed.description += f"\n**User is not currently a member of this server**"
 
     user_history = (
         session.query(Log)
