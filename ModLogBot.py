@@ -58,11 +58,8 @@ session = Session()
 if not os.path.exists('/config/config.yml'):
     shutil.copyfile("config.example.yml", "/config/config.yml")
 
-with open("/config/config.yml", mode='r') as f:
-    config = yaml.safe_load(f)
-
 def load_config():
-    with open("config.yml", mode='r') as f:
+    with open("/config/config.yml", mode='r') as f:
         config = yaml.safe_load(f)
     return config
 config = load_config()
