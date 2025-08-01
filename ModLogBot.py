@@ -374,13 +374,19 @@ async def on_message(message):
     if message.author.bot:
         return
 
+    try:
+        ctx = await bot.get_context(message)
+        if ctx.valid and await ctx.command.can_run(ctx):
+            await bot.process_commands(message)
+            return
+    except discord.ext.commands.errors.CommandError as e:
+        print(f"Error while processing command: {e}")
+
     if isinstance(message.channel, discord.DMChannel):
         await handle_dm(message)
 
     if isinstance(message.guild, discord.Guild):
         await handle_guild_message(message)
-
-    await bot.process_commands(message)
 
 async def handle_dm(message):
     print(f"Received DM from {message.author.name}: {message.content}")
