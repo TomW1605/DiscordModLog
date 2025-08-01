@@ -9,7 +9,7 @@ import yaml
 from discord import app_commands
 from discord.app_commands import Choice
 from discord.ext import commands
-from sqlalchemy import create_engine, Column, Integer, DateTime, func, JSON
+from sqlalchemy import create_engine, Column, Integer, DateTime, func, JSON, BLOB
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 BUILD_DATE = os.getenv('BUILD_DATE', None)
@@ -131,6 +131,7 @@ class Log(Base):
     log_message_id = Column(Integer, nullable=True)
     action_type = Column(Integer, nullable=False)
     log_data = Column(JSON, nullable=False)
+    log_attachment = Column(BLOB, nullable=True)
 
 # Create the table
 Base.metadata.create_all(engine)
@@ -433,9 +434,10 @@ async def reload_servers(ctx: commands.Context) -> None:
 @app_commands.guild_only()
 @app_commands.describe(
     user="User warned",
-    reason="Reason for the warning"
+    reason="Reason for the warning",
+    attachment="Attachment related to the warning (image, etc., optional)"
 )
-async def warn(interaction: discord.Interaction, user: discord.Member, reason: str) -> None:
+async def warn(interaction: discord.Interaction, user: discord.Member, reason: str, attachment: discord.Attachment=None) -> None:
     guild = interaction.guild
     log_channel = guild.get_channel(get_log_channel_id(guild.id))
 
@@ -459,7 +461,16 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
     embed.description += f"\n**Moderator:** {interaction.user.nick or interaction.user.display_name} (<@{interaction.user.id}>)"
     embed.description += f"\n**Reason:** {reason}"
 
-    log_data = {"reason": reason}
+    file = None
+    if attachment:
+        file = await attachment.to_file()
+        if file.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
+            embed.set_image(url=f"attachment://{file.filename}")
+
+    log_data = {
+        "reason": reason,
+        "attachment_filename": attachment.filename if attachment else None,
+    }
 
     if user:
         results = (
@@ -480,7 +491,7 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
 
     message = None
     if able_to_send:
-        message = await log_channel.send(embed=embed)
+        message = await log_channel.send(embed=embed, file=file)
 
     # Save the log to the database
     log_entry = Log(
@@ -491,6 +502,7 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
         log_message_id=message.id if message else None,
         action_type=ActionType.WARNING,
         log_data=log_data,
+        log_attachment=await attachment.read() if attachment else None,
     )
     session.add(log_entry)
     session.commit()
