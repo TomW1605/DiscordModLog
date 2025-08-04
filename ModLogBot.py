@@ -172,7 +172,7 @@ async def check_db_size():
     warning_threshold = 1000  # MB # TODO: Make this configurable
     if db_size > warning_threshold:
         if bot.owner_id is None:
-            await bot.is_owner(bot.user)
+            await bot.is_owner(bot.user) # Ensure bot.owner_id/bot.owner_ids is set
 
         bot_owners = bot.owner_ids if isinstance(bot.owner_ids, set) else [bot.owner_id]
         for owner_id in bot_owners:
@@ -229,7 +229,6 @@ async def on_ready():
     print(f"Build date: {BUILD_DATE}")
     print(f"Version: {VERSION}")
     print(f"Logged in as {bot.user}!")
-    await bot.is_owner(bot.user) # Ensure bot.owner_id is set
     await check_db_size()
 
 @bot.event
