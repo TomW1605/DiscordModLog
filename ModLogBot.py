@@ -166,6 +166,16 @@ def delete_old_logs():
     # Commit the changes to the database
     session.commit()
 
+async def check_db_size():
+    """Check the size of the database and delete old logs if it exceeds 100MB."""
+    db_size = os.path.getsize(f"{config_folder_path}mod_logs.db") / (1024 * 1024)  # Size in MB
+    warning_threshold = 1000  # MB # TODO: Make this configurable
+    if db_size > warning_threshold:
+        owner_user = await bot.fetch_user(bot.owner_id)
+        await owner_user.send(
+            f"Database size of {db_size:.2f}MB exceeds warning threshold of {warning_threshold}MB"
+        )
+
 def get_server(server_id: int):
     try:
         return SERVERS[server_id]
@@ -214,6 +224,8 @@ async def on_ready():
     print(f"Build date: {BUILD_DATE}")
     print(f"Version: {VERSION}")
     print(f"Logged in as {bot.user}!")
+    await bot.is_owner(bot.user) # Ensure bot.owner_id is set
+    await check_db_size()
 
 @bot.event
 async def on_audit_log_entry_create(entry):
@@ -370,6 +382,7 @@ async def on_audit_log_entry_create(entry):
     session.commit()
 
     delete_old_logs()
+    await check_db_size()
 
 @bot.event
 async def on_message(message):
@@ -513,6 +526,7 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
     await interaction.response.send_message("Warning Logged", ephemeral=True)
 
     delete_old_logs()
+    await check_db_size()
 
 @bot.tree.command(description="View the moderation history of a user")
 @app_commands.guild_only()
@@ -585,6 +599,9 @@ async def history(interaction: discord.Interaction, user: discord.Member | disco
             await interaction.response.send_message(embed=embed, ephemeral=True)
     else:
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    delete_old_logs()
+    await check_db_size()
 
 
 @bot.tree.command(description="Send a report to server staff")
