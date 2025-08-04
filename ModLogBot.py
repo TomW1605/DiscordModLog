@@ -171,10 +171,15 @@ async def check_db_size():
     db_size = os.path.getsize(f"{config_folder_path}mod_logs.db") / (1024 * 1024)  # Size in MB
     warning_threshold = 1000  # MB # TODO: Make this configurable
     if db_size > warning_threshold:
-        owner_user = await bot.fetch_user(bot.owner_id)
-        await owner_user.send(
-            f"Database size of {db_size:.2f}MB exceeds warning threshold of {warning_threshold}MB"
-        )
+        if bot.owner_id is None:
+            await bot.is_owner(bot.user)
+
+        bot_owners = bot.owner_ids if isinstance(bot.owner_ids, set) else [bot.owner_id]
+        for owner_id in bot_owners:
+            owner_user = await bot.fetch_user(owner_id)
+            await owner_user.send(
+                f"Database size of {db_size:.2f}MB exceeds warning threshold of {warning_threshold}MB"
+            )
 
 def get_server(server_id: int):
     try:
