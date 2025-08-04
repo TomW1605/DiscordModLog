@@ -47,19 +47,22 @@ need_reason = [
     ActionType.TIMEOUT
 ]
 
+config_folder_path = "/config/"
+
 # Database setup
-os.makedirs('/config', exist_ok=True)
+if config_folder_path != "":
+    os.makedirs(config_folder_path, exist_ok=True)
 Base = declarative_base()
-engine = create_engine("sqlite:////config/mod_logs.db")
+engine = create_engine(f"sqlite:///{config_folder_path}mod_logs.db")
 Session = sessionmaker(bind=engine)
 session = Session()
 
 # Config setup
-if not os.path.exists('/config/config.yml'):
-    shutil.copyfile("config.example.yml", "/config/config.yml")
+if not os.path.exists(f'{config_folder_path}config.yml'):
+    shutil.copyfile("config.example.yml", f"{config_folder_path}config.yml")
 
 def load_config():
-    with open("/config/config.yml", mode='r') as f:
+    with open(f"{config_folder_path}config.yml", mode='r') as f:
         config = yaml.safe_load(f)
     return config
 config = load_config()
