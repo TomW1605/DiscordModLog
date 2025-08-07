@@ -1,3 +1,5 @@
+db_size_warning_threshold: 100 #MB
+
 bot:
     token: # Your bot token here
 

@@ -169,7 +169,7 @@ def delete_old_logs():
 async def check_db_size():
     """Check the size of the database and delete old logs if it exceeds 100MB."""
     db_size = os.path.getsize(f"{config_folder_path}mod_logs.db") / (1024 * 1024)  # Size in MB
-    warning_threshold = 1000  # MB # TODO: Make this configurable
+    warning_threshold = config.get("db_size_warning_threshold", 100)
     if db_size > warning_threshold:
         if bot.owner_id is None:
             await bot.is_owner(bot.user) # Ensure bot.owner_id/bot.owner_ids is set
