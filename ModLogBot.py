@@ -141,12 +141,23 @@ class Log(Base):
     log_data = Column(JSON, nullable=False)
     log_attachment = Column(BLOB, nullable=True)
 
+# Check if DB file exists
+if not os.path.exists(f"{config_folder_path}mod_logs.db"):
+    new_db = True
+else:
+    new_db = False
+
 # Create the table
 Base.metadata.create_all(engine)
 
 def upgrade_db():
     alembic_cfg = AlembicConfig("alembic.ini")
     alembic_cfg.set_main_option("sqlalchemy.url", f"sqlite:///{config_folder_path}mod_logs.db")
+
+    if new_db:
+        alembic_command.stamp(alembic_cfg, "head")
+        print("New database created. No upgrade needed.")
+        return
 
     try:
         alembic_command.check(alembic_cfg)
