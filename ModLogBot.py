@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 from datetime import datetime, timedelta
 from typing import Optional, Literal, List
@@ -267,6 +268,13 @@ def get_ignored_channels(server_id: int):
     except TypeError:
         return []
 
+async def unmute_user(interaction: discord.Interaction):
+    await interaction.message.edit(view=None)
+    user_id, mod_id = re.findall(r'<@(\d+)>', interaction.message.embeds[0].description)
+    user = interaction.guild.get_member(int(user_id))
+    await user.edit(mute=False, reason=f"Unmuted by {interaction.user.nick or interaction.user.display_name} (<@{interaction.user.id}>)")
+    print(interaction)
+
 @bot.event
 async def on_ready():
     print(f"Build date: {BUILD_DATE}")
@@ -296,6 +304,8 @@ async def on_audit_log_entry_create(entry):
         title=f"Unknown Action: {entry.action}",
         description=""
     )
+
+    ui_view = None
 
     if isinstance(entry.target, discord.Member):
         embed.description += f"**User:** {entry.target.nick or entry.target.display_name} (<@{entry.target.id}>)"
@@ -351,10 +361,24 @@ async def on_audit_log_entry_create(entry):
                 action_type = ActionType.TIMEOUT_REMOVED
 
         if "mute" in entry.before.__dict__ and entry.before.mute != entry.after.mute:
-            mute_status = "Muted" if entry.after.mute else "Unmuted"
-            embed.title=f"🔇 {mute_status}"
             embed.colour=discord.Colour.purple()
-            action_type = ActionType.MUTED if entry.after.mute else ActionType.UNMUTED
+
+            if entry.after.mute:
+                embed.title=f"🔇 Muted"
+                action_type = ActionType.MUTED
+
+                ui_view = discord.ui.View(timeout=None)
+                unmute_button = discord.ui.Button(label="Unmute", style=discord.ButtonStyle.green, custom_id="unmute")
+                unmute_button.callback = unmute_user
+                ui_view.add_item(unmute_button)
+
+            else:
+                embed.title=f"🔊 Unmuted"
+                action_type = ActionType.UNMUTED
+
+            if entry.reason:
+                log_data["reason"] = entry.reason
+                embed.description += f"\n**Reason:** {entry.reason}"
 
         if "nick" in entry.before.__dict__ and entry.before.nick != entry.after.nick and entry.target.id != entry.user.id:
             embed.title=f"📝 Nickname Changed"
@@ -371,7 +395,7 @@ async def on_audit_log_entry_create(entry):
             log_data["new_nick"] = entry.after.nick or user.display_name
 
     elif entry.action == discord.AuditLogAction.member_disconnect:
-        embed.title="🔊 Disconnected From Voice"
+        embed.title="☎ Disconnected From Voice"
         embed.colour=discord.Colour.purple()
         action_type = ActionType.MEMBER_DISCONNECT
 
@@ -413,7 +437,7 @@ async def on_audit_log_entry_create(entry):
                 (not (isinstance(entry.target, discord.Member) or isinstance(entry.target, discord.User)))
         ):
             comment = f"Hey <@{entry.user.id}>, can you add some context to this action?"
-        message = await log_channel.send(comment, embed=embed)
+        message = await log_channel.send(comment, embed=embed, view=ui_view)
 
     # Save the log to the database
     log_entry = Log(
