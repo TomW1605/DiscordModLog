@@ -146,6 +146,7 @@ Base.metadata.create_all(engine)
 
 def upgrade_db():
     alembic_cfg = AlembicConfig("alembic.ini")
+    alembic_cfg.set_main_option("sqlalchemy.url", f"sqlite:///{config_folder_path}mod_logs.db")
 
     try:
         alembic_command.check(alembic_cfg)
