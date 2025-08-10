@@ -118,12 +118,21 @@ def load_servers():
                     except (ValueError, TypeError):
                         print(f"Ignored Channel ID `{ignored_channel}` is not a valid channel ID. Skipping channel.")
 
+            quarantine_role_id = config["servers"][server].get("quarantine_role_id", None)
+            quarantine_channel_id = config["servers"][server].get("quarantine_channel_id", None)
+            if quarantine_role_id is None or quarantine_channel_id is None:
+                print(f"Quarantine role ID or quarantine channel ID not set for server `{server_id}`. Quarantine features disabled.")
+                quarantine_role_id = None
+                quarantine_channel_id = None
+
             servers[server_id] = {
                 "name": server,
                 "log_channel_id": log_channel_id,
                 "report_channel_id": report_channel_id,
                 "report_role_ping_id": report_role_ping_id,
-                "ignored_channels": ignored_channels
+                "ignored_channels": ignored_channels,
+                "quarantine_role_id": quarantine_role_id,
+                "quarantine_channel_id": quarantine_channel_id,
             }
     return servers
 SERVERS = None
@@ -266,6 +275,15 @@ def get_ignored_channels(server_id: int):
         return []
     except TypeError:
         return []
+
+def get_quarantine_ids(server_id: int):
+    try:
+        return get_server(server_id)['quarantine_role_id'], get_server(server_id)['quarantine_channel_id']
+    except KeyError:
+        print(f"Quarantine role ID or quarantine channel ID not found for server {server_id}")
+        return None, None
+    except TypeError:
+        return None, None
 
 @bot.event
 async def on_ready():
@@ -432,7 +450,7 @@ async def on_audit_log_entry_create(entry):
     await check_db_size()
 
 @bot.event
-async def on_message(message):
+async def on_message(message: discord.Message):
     if message.author.bot:
         return
 
@@ -450,11 +468,29 @@ async def on_message(message):
     if isinstance(message.guild, discord.Guild):
         await handle_guild_message(message)
 
-async def handle_dm(message):
+async def handle_dm(message: discord.Message):
     print(f"Received DM from {message.author.name}: {message.content}")
     await message.reply("Thank you for your message! Please use the `/report` command to report issues", mention_author=False)
 
-async def handle_guild_message(message):
+async def quarantine_user(message: discord.Message):
+    quarantine_role_id, quarantine_channel_id = get_quarantine_ids(message.guild.id)
+
+    print(f"User {message.author.name} tried to mention @everyone or @here in {message.guild.name} but does not have permission.")
+    quarantine_role = message.guild.get_role(quarantine_role_id)
+    member_roles = message.author.roles
+    await message.author.edit(roles=[quarantine_role])
+
+    quarantine_channel = message.guild.get_channel(quarantine_channel_id)
+    await quarantine_channel.send(f"{message.author.mention}, you have been quarantined for trying to mention `@everyone` or `@here` without permission. Please contact an admin to regain access to the server.")
+    await message.forward(quarantine_channel)
+    await message.delete()
+    role_text = [f"`@{role.name}`" for role in member_roles if role.name != "@everyone"]
+    await quarantine_channel.send(f"Previous roles: {', '.join(role_text)}")
+
+async def handle_guild_message(message: discord.Message):
+    if (any(x in message.content for x in ("@everyone", "@here")) and
+        message.author.guild_permissions.mention_everyone == False):
+        await quarantine_user(message)
     pass
 
 @bot.command()
