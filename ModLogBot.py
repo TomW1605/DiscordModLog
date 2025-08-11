@@ -52,7 +52,7 @@ need_reason = [
     ActionType.TIMEOUT
 ]
 
-config_folder_path = "/config/"
+config_folder_path = os.environ.get("CONFIG_FOLDER_PATH", "/config/")
 
 # Database setup
 if config_folder_path != "":
