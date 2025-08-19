@@ -272,7 +272,8 @@ async def unmute_user(interaction: discord.Interaction):
     await interaction.message.edit(view=None)
     user_id, mod_id = re.findall(r'<@(\d+)>', interaction.message.embeds[0].description)
     user = interaction.guild.get_member(int(user_id))
-    await user.edit(mute=False, reason=f"Unmuted by {interaction.user.nick or interaction.user.display_name} (<@{interaction.user.id}>)")
+    if user.voice.mute:
+        await user.edit(mute=False, reason=f"Unmuted by {interaction.user.nick or interaction.user.display_name} (<@{interaction.user.id}>) via bot")
     print(interaction)
 
 @bot.event
@@ -363,6 +364,18 @@ async def on_audit_log_entry_create(entry):
         if "mute" in entry.before.__dict__ and entry.before.mute != entry.after.mute:
             embed.colour=discord.Colour.purple()
 
+            if entry.reason:
+                reason = entry.reason
+                matches = re.findall(r'<@!?(\d+)>', reason)
+                if len(matches) > 0:
+                    mod_id = int(matches[0])
+                    entry.user = entry.guild.get_member(mod_id)
+                    embed.description = '\n'.join(embed.description.split('\n')[:-1])
+                    embed.description += f"\n**Moderator:** {entry.user.nick or entry.user.display_name} (<@{entry.user.id}>)"
+
+                log_data["reason"] = reason
+                embed.description += f"\n**Reason:** {reason}"
+
             if entry.after.mute:
                 embed.title=f"🔇 Muted"
                 action_type = ActionType.MUTED
@@ -375,10 +388,6 @@ async def on_audit_log_entry_create(entry):
             else:
                 embed.title=f"🔊 Unmuted"
                 action_type = ActionType.UNMUTED
-
-            if entry.reason:
-                log_data["reason"] = entry.reason
-                embed.description += f"\n**Reason:** {entry.reason}"
 
         if "nick" in entry.before.__dict__ and entry.before.nick != entry.after.nick and entry.target.id != entry.user.id:
             embed.title=f"📝 Nickname Changed"
