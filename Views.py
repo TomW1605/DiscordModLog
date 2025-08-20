@@ -1,10 +1,13 @@
 import discord
 
 class DisconnectedUserSelectView(discord.ui.View):
+    log_entry = None
     message: discord.Message = None
 
-    def __init__(self):
+    def __init__(self, db_session):
         super().__init__(timeout=None)
+
+        self.db_session = db_session
 
     async def on_timeout(self):
         if self.message:
@@ -31,5 +34,8 @@ class DisconnectedUserSelectView(discord.ui.View):
         self.timeout = 10
         await self.message.edit(embed=embed, view=self)
         await interaction.response.send_message(f"Log linked to {user.nick or user.display_name} (<@{user.id}>).", ephemeral=True)
+
+        self.log_entry.target_user_id = user.id
+        self.db_session.commit()
 
         print(interaction)

@@ -378,7 +378,7 @@ async def on_audit_log_entry_create(entry):
         embed.colour=discord.Colour.purple()
         action_type = ActionType.MEMBER_DISCONNECT
 
-        ui_view = DisconnectedUserSelectView()
+        ui_view = DisconnectedUserSelectView(session)
 
     elif entry.action == discord.AuditLogAction.message_delete:
         if entry.extra.channel.id in get_ignored_channels(guild.id):
@@ -432,6 +432,9 @@ async def on_audit_log_entry_create(entry):
     )
     session.add(log_entry)
     session.commit()
+
+    if hasattr(ui_view, 'log_entry'):
+        ui_view.log_entry = log_entry
 
     delete_old_logs()
     await check_db_size()
