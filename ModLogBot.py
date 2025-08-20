@@ -267,6 +267,26 @@ def get_ignored_channels(server_id: int):
     except TypeError:
         return []
 
+async def view_timeout_handler(self):
+    print("View timeout handler called")
+
+async def assign_user_to_event(interaction: discord.Interaction):
+    if len(interaction.data['values']) < 0:
+        await interaction.response.send_message("No user selected.", ephemeral=True)
+        return
+    user_id = interaction.data['values'][0]
+
+    user = interaction.guild.get_member(int(user_id))
+    if user is None:
+        await interaction.response.send_message("Selected user not found in the server.", ephemeral=True)
+        return
+
+    view_ui = discord.ui.View.from_message(interaction.message)
+    view_ui.timeout = 10
+    await interaction.message.edit(view=view_ui)
+    await interaction.response.send_message(f"Log linked to {user.nick or user.display_name} (<@{user.id}>).", ephemeral=True)
+    print(interaction)
+
 @bot.event
 async def on_ready():
     print(f"Build date: {BUILD_DATE}")
@@ -296,6 +316,8 @@ async def on_audit_log_entry_create(entry):
         title=f"Unknown Action: {entry.action}",
         description=""
     )
+
+    ui_view = None
 
     if isinstance(entry.target, discord.Member):
         embed.description += f"**User:** {entry.target.nick or entry.target.display_name} (<@{entry.target.id}>)"
@@ -356,6 +378,12 @@ async def on_audit_log_entry_create(entry):
             embed.colour=discord.Colour.purple()
             action_type = ActionType.MUTED if entry.after.mute else ActionType.UNMUTED
 
+            ui_view = discord.ui.View(timeout=None)
+            ui_view.on_timeout = view_timeout_handler
+            user_select = discord.ui.UserSelect(placeholder="Select disconnected User", custom_id="user_select")
+            user_select.callback = assign_user_to_event
+            ui_view.add_item(user_select)
+
         if "nick" in entry.before.__dict__ and entry.before.nick != entry.after.nick and entry.target.id != entry.user.id:
             embed.title=f"📝 Nickname Changed"
             embed.colour=discord.Colour.purple()
@@ -374,6 +402,11 @@ async def on_audit_log_entry_create(entry):
         embed.title="🔊 Disconnected From Voice"
         embed.colour=discord.Colour.purple()
         action_type = ActionType.MEMBER_DISCONNECT
+
+        ui_view = discord.ui.View(timeout=None)
+        user_select = discord.ui.UserSelect(placeholder="Select disconnected User", custom_id="user_select")
+        user_select.callback = assign_user_to_event
+        ui_view.add_item(user_select)
 
     elif entry.action == discord.AuditLogAction.message_delete:
         if entry.extra.channel.id in get_ignored_channels(guild.id):
@@ -413,7 +446,7 @@ async def on_audit_log_entry_create(entry):
                 (not (isinstance(entry.target, discord.Member) or isinstance(entry.target, discord.User)))
         ):
             comment = f"Hey <@{entry.user.id}>, can you add some context to this action?"
-        message = await log_channel.send(comment, embed=embed)
+        message = await log_channel.send(comment, embed=embed, view=ui_view)
 
     # Save the log to the database
     log_entry = Log(
