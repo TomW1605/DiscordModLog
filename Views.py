@@ -24,8 +24,12 @@ class DisconnectedUserSelectView(discord.ui.View):
             return
 
         self.message = interaction.message
+
+        embed = self.message.embeds[0]
+        embed.description = f"**User:** {user.nick or user.display_name} (<@{user.id}>)\n" + embed.description
+
         self.timeout = 10
-        await self.message.edit(view=self)
+        await self.message.edit(embed=embed, view=self)
         await interaction.response.send_message(f"Log linked to {user.nick or user.display_name} (<@{user.id}>).", ephemeral=True)
 
         print(interaction)
