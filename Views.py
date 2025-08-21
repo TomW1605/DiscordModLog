@@ -5,7 +5,7 @@ class DisconnectedUserSelectView(discord.ui.View):
     message: discord.Message = None
 
     def __init__(self, db_session):
-        super().__init__(timeout=None)
+        super().__init__(timeout=10*60)  # 10 minutes timeout
 
         self.db_session = db_session
 
@@ -31,7 +31,7 @@ class DisconnectedUserSelectView(discord.ui.View):
         embed = self.message.embeds[0]
         embed.description = f"**User:** {user.nick or user.display_name} (<@{user.id}>)\n" + embed.description
 
-        self.timeout = 10
+        self.timeout = 30
         await self.message.edit(embed=embed, view=self)
         await interaction.response.send_message(f"Log linked to {user.nick or user.display_name} (<@{user.id}>).", ephemeral=True)
 
