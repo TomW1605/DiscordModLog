@@ -29,6 +29,8 @@ class DisconnectedUserSelectView(discord.ui.View):
         self.message = interaction.message
 
         embed = self.message.embeds[0]
+        if embed.description.startswith("**User:**"):
+            embed.description = embed.description.split("\n", 1)[1]
         embed.description = f"**User:** {user.nick or user.display_name} (<@{user.id}>)\n" + embed.description
 
         self.timeout = 30
