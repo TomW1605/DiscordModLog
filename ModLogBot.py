@@ -41,6 +41,7 @@ class ActionType:
     MESSAGE_DELETE = 9
     WARNING = 10
     NICKNAME_CHANGED = 11
+    QUARANTINE = 12
 
 need_reason = [
     ActionType.MUTED,
@@ -118,12 +119,21 @@ def load_servers():
                     except (ValueError, TypeError):
                         print(f"Ignored Channel ID `{ignored_channel}` is not a valid channel ID. Skipping channel.")
 
+            quarantine_role_id = config["servers"][server].get("quarantine_role_id", None)
+            quarantine_channel_id = config["servers"][server].get("quarantine_channel_id", None)
+            if quarantine_role_id is None or quarantine_channel_id is None:
+                print(f"Quarantine role ID or quarantine channel ID not set for server `{server_id}`. Quarantine features disabled.")
+                quarantine_role_id = None
+                quarantine_channel_id = None
+
             servers[server_id] = {
                 "name": server,
                 "log_channel_id": log_channel_id,
                 "report_channel_id": report_channel_id,
                 "report_role_ping_id": report_role_ping_id,
-                "ignored_channels": ignored_channels
+                "ignored_channels": ignored_channels,
+                "quarantine_role_id": quarantine_role_id,
+                "quarantine_channel_id": quarantine_channel_id,
             }
     return servers
 SERVERS = None
@@ -134,7 +144,7 @@ class Log(Base):
     log_id = Column(Integer, primary_key=True, autoincrement=True)
     log_time = Column(DateTime, nullable=False)
     guild_id = Column(Integer, nullable=False)
-    mod_user_id = Column(Integer, nullable=False)
+    mod_user_id = Column(Integer, nullable=True)
     target_user_id = Column(Integer, nullable=True)
     log_message_id = Column(Integer, nullable=True)
     action_type = Column(Integer, nullable=False)
@@ -266,6 +276,15 @@ def get_ignored_channels(server_id: int):
         return []
     except TypeError:
         return []
+
+def get_quarantine_ids(server_id: int):
+    try:
+        return get_server(server_id)['quarantine_role_id'], get_server(server_id)['quarantine_channel_id']
+    except KeyError:
+        print(f"Quarantine role ID or quarantine channel ID not found for server {server_id}")
+        return None, None
+    except TypeError:
+        return None, None
 
 @bot.event
 async def on_ready():
@@ -432,7 +451,7 @@ async def on_audit_log_entry_create(entry):
     await check_db_size()
 
 @bot.event
-async def on_message(message):
+async def on_message(message: discord.Message):
     if message.author.bot:
         return
 
@@ -450,11 +469,69 @@ async def on_message(message):
     if isinstance(message.guild, discord.Guild):
         await handle_guild_message(message)
 
-async def handle_dm(message):
+async def handle_dm(message: discord.Message):
     print(f"Received DM from {message.author.name}: {message.content}")
     await message.reply("Thank you for your message! Please use the `/report` command to report issues", mention_author=False)
 
-async def handle_guild_message(message):
+async def quarantine_user(message: discord.Message):
+    quarantine_role_id, quarantine_channel_id = get_quarantine_ids(message.guild.id)
+
+    print(f"User {message.author.name} tried to mention @everyone or @here in {message.guild.name} but does not have permission.")
+    quarantine_role = message.guild.get_role(quarantine_role_id)
+    member_roles = message.author.roles
+    await message.author.edit(roles=[quarantine_role])
+
+    quarantine_channel = message.guild.get_channel(quarantine_channel_id)
+    role_text = [f"`@{role.name}`" for role in member_roles if role.name != "@everyone"]
+    await quarantine_channel.send(f"{message.author.mention}, you have been quarantined for trying to mention `@everyone` or "
+                                  f"`@here` without permission. Please contact an admin to regain access to the server.\n"
+                                  f"@here, previous roles: {', '.join(role_text)}")
+    await message.forward(quarantine_channel)
+    await message.delete()
+
+    guild = message.guild
+    log_channel = guild.get_channel(get_log_channel_id(guild.id))
+
+    able_to_send = True
+    if not log_channel:
+        able_to_send = False
+        print(f"Log channel not found for guild '{guild.name}' ({guild.id}). Skipping log message.")
+    else:
+        permissions = log_channel.permissions_for(guild.me)
+        if not (permissions.send_messages and permissions.embed_links):
+            able_to_send = False
+            print(f"Bot does not have permission to send messages and embed links in log channel '{log_channel.name}' ({log_channel.id}). Skipping log message.")
+
+    log_message = None
+    if able_to_send:
+        embed = discord.Embed(
+            timestamp=message.created_at,
+            title=f"🛡️ User Quarantined",
+            description="",
+            colour=discord.Colour.yellow()
+        )
+        embed.description += f"**User:** {message.author.nick or message.author.display_name} (<@{message.author.id}>)"
+        embed.description += f"\n**Reason:** User tried to mention `@everyone` or `@here` without permission"
+        log_message = await log_channel.send(embed=embed)
+
+    log_entry = Log(
+        log_time=message.created_at,
+        guild_id=guild.id,
+        mod_user_id=None,
+        target_user_id=message.author.id,
+        log_message_id=log_message.id if log_message else None,
+        action_type=ActionType.QUARANTINE,
+        log_data={"reason": "User tried to mention `@everyone` or `@here` without permission"},
+        log_attachment=None,
+    )
+    session.add(log_entry)
+    session.commit()
+
+
+async def handle_guild_message(message: discord.Message):
+    if (any(x in message.content for x in ("@everyone", "@here")) and
+        message.author.guild_permissions.mention_everyone == False):
+        await quarantine_user(message)
     pass
 
 @bot.command()
@@ -621,6 +698,8 @@ async def history(interaction: discord.Interaction, user: discord.Member | disco
             action_text = "Message Deleted"
         elif action == ActionType.WARNING:
             action_text = "Warning"
+        elif action == ActionType.QUARANTINE:
+            action_text = "Quarantined"
 
         if action_text:
             if guild.id and get_log_channel_id(guild.id) and item.log_message_id:

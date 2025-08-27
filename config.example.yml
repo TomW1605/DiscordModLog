@@ -12,6 +12,10 @@ servers:
         ignored_channels:
             - # List of channel IDs to ignore, e.g., 123456789012345678
             - # Another channel ID to ignore
+        # Quarantine users if they attempt to @everyone without permission
+        # quarantine_role_id and quarantine_channel_id are optional but must both be supplied for quarantine functionality
+        quarantine_role_id: # Your quarantine role ID here
+        quarantine_channel_id: # Your quarantine channel ID here
 
     server_2:
         id: # Your server ID here
