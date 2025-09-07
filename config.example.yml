@@ -4,25 +4,25 @@ bot:
     token: # Your bot token here
 
 servers:
-    server_1:
-        id: # Your server ID here
-        log_channel_id: # Your server log channel ID here
-        report_channel_id: # Your server report channel ID here. Optional
-        report_role_ping_id: # ID to ping for reports. Optional. Ignored if report_channel_id is not set
+    1234567890123456789: # ID of your first server
+        name: # (required, str) Name of your server (only used for logging)
+        log_channel_id: # (optional, int) Your server log channel ID here
+        report_channel_id: # (optional, int) Your server report channel ID here. Optional
+        report_role_ping_id: # (optional, int) Role ID to ping for reports. Optional. Ignored if report_channel_id is not set
         ignored_channels:
             - # List of channel IDs to ignore, e.g., 123456789012345678
             - # Another channel ID to ignore
         auto_message_removals:
-            - channel_id: # Required integer: Channel ID to monitor for new messages to remove
-              regex_matching: # Optional string: RegEx pattern to match against posted message; if both regex tests pass, message will be removed
-              regex_not_matching: # Optional string: RegEx pattern to NOT match against posted message; if both regex tests pass, message will be removed
-              removal_delay_seconds: # Optional float: Number of seconds to wait before deleting the original message and the optional response
-              response_message: # Optional string: Message to post in response to message posted to channel
+            - channel_id: # (required, int) Channel ID to monitor for new messages to remove
+              regex_matching: # (optional str) RegEx pattern to match against posted message; if both regex tests pass, message will be removed
+              regex_not_matching: # (optional str) RegEx pattern to NOT match against posted message; if both regex tests pass, message will be removed
+              removal_delay_seconds: # (optional float) Number of seconds to wait before deleting the original message and the optional response
+              response_message: # (optional str) Message to post in response to message posted to channel
             - channel_id: # ...
               regex_matching: # ...
               regex_not_matching: # ...
               removal_delay_seconds: # ...
               response_message: # ...
-    server_2:
-        id: # Your server ID here
-        log_channel_id: # Your server log channel ID here
+    9876543210987654321: # ID of your second server
+        name: # ...
+        log_channel_id: # ...
