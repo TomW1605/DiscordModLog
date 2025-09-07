@@ -9,7 +9,7 @@ ARG VCS_REF
 ENV VERSION=$VCS_REF
 
 # Install dependencies
-RUN pip3 install discord.py sqlalchemy pyaml alembic
+RUN pip3 install discord.py sqlalchemy pyaml alembic pydantic
 
 # Create and set the working directory
 WORKDIR /app
