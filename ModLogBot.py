@@ -291,21 +291,25 @@ def get_auto_message_removals(server_id: int) -> List[Config_AutoMessageRemoval]
     except TypeError:
         return []
 
-async def handle_auto_message_removal(message: discord.Message, auto_message_removal: Config_AutoMessageRemoval):
-    # Test if message should be removed
-    if auto_message_removal.regex_matching is not None and re.match(auto_message_removal.regex_matching, message.content) is None:
-        return # setting is set and NOT matched, so we ignore this message
-    if auto_message_removal.regex_not_matching is not None and re.match(auto_message_removal.regex_not_matching, message.content) is not None:
-        return # setting is set and matched, so we ignore this message
+async def handle_auto_message_removal(message: discord.Message) -> None:
+    auto_message_removals = get_auto_message_removals(message.guild.id)
+    
+    for auto_message_removal in auto_message_removals:
+        if message.channel.id == auto_message_removal.channel_id:
+            # Test if message should be removed
+            if auto_message_removal.regex_matching is not None and re.match(auto_message_removal.regex_matching, message.content) is None:
+                return # setting is set and NOT matched, so we ignore this message
+            if auto_message_removal.regex_not_matching is not None and re.match(auto_message_removal.regex_not_matching, message.content) is not None:
+                return # setting is set and matched, so we ignore this message
 
-    # Remove message
-    if auto_message_removal.response_message:
-        # Send a response that deletes itself after the configured time
-        msg = await message.reply(auto_message_removal.response_message, mention_author=True)
-        await msg.delete(delay=auto_message_removal.removal_delay_seconds)
+            # Remove message
+            if auto_message_removal.response_message:
+                # Send a response that deletes itself after the configured time
+                msg = await message.reply(auto_message_removal.response_message, mention_author=True)
+                await msg.delete(delay=auto_message_removal.removal_delay_seconds)
 
-    # Delete the user's original message after the configured time
-    await message.delete(delay=auto_message_removal.removal_delay_seconds)
+            # Delete the user's original message after the configured time
+            await message.delete(delay=auto_message_removal.removal_delay_seconds)
 
 @bot.event
 async def on_ready():
@@ -500,10 +504,7 @@ async def handle_guild_message(message: discord.Message):
         return
     
     # Process auto message removal channels
-    auto_message_removals = get_auto_message_removals(message.guild.id)
-    for auto_message_removal in auto_message_removals:
-        if message.channel.id == auto_message_removal.channel_id:
-            await handle_auto_message_removal(message, auto_message_removal)
+    await handle_auto_message_removal(message)
 
 @bot.command()
 # @commands.guild_only()
