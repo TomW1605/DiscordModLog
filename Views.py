@@ -1,3 +1,5 @@
+import re
+
 import discord
 
 class DisconnectedUserSelectView(discord.ui.View):
@@ -16,6 +18,13 @@ class DisconnectedUserSelectView(discord.ui.View):
 
     @discord.ui.select(placeholder="Select disconnected User", cls=discord.ui.UserSelect)
     async def user_select(self, interaction: discord.Interaction, select: discord.ui.UserSelect):
+        matches = re.findall(r'<@!?(\d+)>', interaction.message.embeds[0].description)
+        if len(matches) > 0:
+            mod_id = int(matches[-1])
+            if mod_id != interaction.user.id:
+                await interaction.response.send_message("You are not the moderator who generated this log.", ephemeral=True)
+                return
+
         if len(interaction.data['values']) < 0:
             await interaction.response.send_message("No user selected.", ephemeral=True)
             return
