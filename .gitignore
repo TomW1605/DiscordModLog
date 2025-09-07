@@ -1,3 +1,6 @@
 .idea/
-config.yaml
+.venv/
+__pycache__/
+config.yml
+mod_logs.db
 .env
