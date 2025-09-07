@@ -12,7 +12,17 @@ servers:
         ignored_channels:
             - # List of channel IDs to ignore, e.g., 123456789012345678
             - # Another channel ID to ignore
-
+        auto_message_removals:
+            - channel_id: # Required integer: Channel ID to monitor for new messages to remove
+              regex_matching: # Optional string: RegEx pattern to match against posted message; if both regex tests pass, message will be removed
+              regex_not_matching: # Optional string: RegEx pattern to NOT match against posted message; if both regex tests pass, message will be removed
+              removal_delay_seconds: # Optional float: Number of seconds to wait before deleting the original message and the optional response
+              response_message: # Optional string: Message to post in response to message posted to channel
+            - channel_id: # ...
+              regex_matching: # ...
+              regex_not_matching: # ...
+              removal_delay_seconds: # ...
+              response_message: # ...
     server_2:
         id: # Your server ID here
         log_channel_id: # Your server log channel ID here
