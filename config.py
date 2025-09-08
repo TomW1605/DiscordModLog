@@ -1,6 +1,6 @@
 import os
-from pydantic import BaseModel, Field, field_validator
 from typing import List, Dict
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 import yaml
 
 class AutoMessageRemoval(BaseModel):
@@ -10,6 +10,11 @@ class AutoMessageRemoval(BaseModel):
     regex_not_matching: str = None # If message matches this RegEx, it is NOT removed.
     removal_delay_seconds: float = None # How long to wait before removing the message.
     response_message: str = None # Response message to remove messages.
+
+class ModLog(BaseModel):
+    """Class for holding the configuration for the moderation log feature"""
+    log_channel_id: int # The channel to post in for any observed moderator actions.
+    ignored_channels: List[int] = [] # List of Channel IDs to ignore moderator actions in.
 
 class Server(BaseModel):
     """Class for holding a server's configuration"""
@@ -25,7 +30,9 @@ class Server(BaseModel):
 
 class Bot(BaseModel):
     """Class for holding the bot's parameters"""
-    token: Optional[str] = Field(default_factory=lambda: os.getenv('BOT_TOKEN', None)) # The token for the bot. If not specified in YAML, will default to 'BOT_TOKEN' from the environment.
+    model_config = ConfigDict(validate_default=True)
+
+    token: str = Field(default_factory=lambda: os.getenv('BOT_TOKEN', ""), min_length=72, max_length=72) # The token for the bot. If not specified in YAML, will default to 'BOT_TOKEN' from the environment.
 
 class Config(BaseModel):
     """Class for holding the bot's entire configuration YAML"""
@@ -47,20 +54,9 @@ class Config(BaseModel):
         
         @param file The path to the file to load."""
         with open(file, mode='r') as f:
-            config = yaml.safe_load(f)
+            config_yaml = yaml.safe_load(f)
 
-        output = Config(**config)
-
-        # Make sure bot entry actually exists, despite being "Optional"
-        if not output.bot:
-            output.bot = Bot()
-
-        # Override bot token with environment variable, if set
-        output.bot.token = os.getenv('BOT_TOKEN', output.bot.token)
-        
-        # Validate bot token is set
-        if output.bot.token is None:
-            raise ValueError("BOT_TOKEN is not set in environment variables, and bot->token not found in config.yml.")
+        output = Config(**config_yaml)
 
         return output
 
