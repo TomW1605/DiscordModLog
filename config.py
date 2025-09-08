@@ -38,7 +38,7 @@ class Config(BaseModel):
     """Class for holding the bot's entire configuration YAML"""
     db_size_warning_threshold: int = 100
     bot: Bot = Field(default_factory=lambda: Bot()) # General bot configuration settings.
-    servers: Dict[int, Server] # Dictionary of servers to operate on. Key is the server ID.
+    servers: dict[int, Server] # Dictionary of servers to operate on. Key is the server ID.
 
     @field_validator('servers', mode='before')
     def validate_servers(cls, v):
