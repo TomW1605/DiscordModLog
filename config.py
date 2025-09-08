@@ -1,7 +1,8 @@
 import os
-from typing import List, Dict
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from typing import List
+
 import yaml
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class AutoMessageRemoval(BaseModel):
     """Class for holding an auto message removal config instance"""
