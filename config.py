@@ -1,6 +1,6 @@
 import os
 from typing import Optional, List, Dict
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 import yaml
 
 class AutoMessageRemoval(BaseModel):
@@ -13,6 +13,7 @@ class AutoMessageRemoval(BaseModel):
 
 class Server(BaseModel):
     """Class for holding a server's configuration"""
+    id: int # The ID of the server (guild).
     name: str # Name of the server. Only used for console logging.
     report_channel_id: int # The channel to post user reports to.
     report_role_ping_id: Optional[int] = None # The role ID to ping for any user reports.
@@ -31,6 +32,14 @@ class Config(BaseModel):
     db_size_warning_threshold: int = 100
     bot: Optional[Bot] = Field(default_factory=lambda: Bot()) # General bot configuration settings.
     servers: Dict[int, Server] # Dictionary of servers to operate on. Key is the server ID.
+
+    @field_validator('servers', mode='before')
+    def validate_servers(cls, v):
+        if not isinstance(v, dict):
+            raise ValueError("servers must be a dictionary with server IDs as keys")
+        for key, value in v.items():
+            v[key]["id"] = key
+        return v
 
     @staticmethod
     def load(file: str): # -> Self # Python 3.10 does not support Self from typing library
