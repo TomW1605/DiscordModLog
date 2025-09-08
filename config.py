@@ -1,27 +1,27 @@
 import os
-from typing import Optional, List, Dict
 from pydantic import BaseModel, Field, field_validator
+from typing import List, Dict
 import yaml
 
 class AutoMessageRemoval(BaseModel):
     """Class for holding an auto message removal config instance"""
     channel_id: int # The channel to monitor for posted messages.
-    regex_matching: Optional[str] = None # If message does not match this RegEx, it is NOT removed.
-    regex_not_matching: Optional[str] = None # If message matches this RegEx, it is NOT removed.
-    removal_delay_seconds: Optional[float] = None # How long to wait before removing the message.
-    response_message: Optional[str] = None # Response message to remove messages.
+    regex_matching: str = None # If message does not match this RegEx, it is NOT removed.
+    regex_not_matching: str = None # If message matches this RegEx, it is NOT removed.
+    removal_delay_seconds: float = None # How long to wait before removing the message.
+    response_message: str = None # Response message to remove messages.
 
 class Server(BaseModel):
     """Class for holding a server's configuration"""
     id: int # The ID of the server (guild).
     name: str # Name of the server. Only used for console logging.
     report_channel_id: int # The channel to post user reports to.
-    report_role_ping_id: Optional[int] = None # The role ID to ping for any user reports.
-    log_channel_id: Optional[int] # Channe ID to post in for any observed moderator actions.
-    ignored_channels: Optional[List[int]] = None # List of Channel IDs to ignore moderator actions in.
+    report_role_ping_id: int = None # The role ID to ping for any user reports.
+    log_channel_id: int = None # Channe ID to post in for any observed moderator actions.
+    ignored_channels: List[int] = [] # List of Channel IDs to ignore moderator actions in.
 #    mod_logs: Optional[Config_ModLog] = None # Configuration for the moderation log feature.
 #    reporting: Optional[Config_Reports] = None # configuration for the user reports feature.
-    auto_message_removals: Optional[List[AutoMessageRemoval]] = None # Multiple configurations for the auto message removal feature.
+    auto_message_removals: List[AutoMessageRemoval] = [] # Multiple configurations for the auto message removal feature.
 
 class Bot(BaseModel):
     """Class for holding the bot's parameters"""
@@ -30,7 +30,7 @@ class Bot(BaseModel):
 class Config(BaseModel):
     """Class for holding the bot's entire configuration YAML"""
     db_size_warning_threshold: int = 100
-    bot: Optional[Bot] = Field(default_factory=lambda: Bot()) # General bot configuration settings.
+    bot: Bot = Field(default_factory=lambda: Bot()) # General bot configuration settings.
     servers: Dict[int, Server] # Dictionary of servers to operate on. Key is the server ID.
 
     @field_validator('servers', mode='before')
