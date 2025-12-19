@@ -213,8 +213,8 @@ def verify_db_tables(conn, metadata):
                                 (table.key, column.name, check_column.type, column.type))
 
 def delete_old_logs():
-    # Calculate the cutoff date (3 months ago)
-    cutoff_date = datetime.now() - timedelta(days=90)
+    # Calculate the cutoff date (3 months ago by default)
+    cutoff_date = datetime.now() - timedelta(days=config.get("db_log_retention_days", 90))
 
     # Query and delete logs older than the cutoff date
     old_logs = session.query(Log).filter(Log.log_time < cutoff_date).all()

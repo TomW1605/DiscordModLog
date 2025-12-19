@@ -1,4 +1,5 @@
 db_size_warning_threshold: 100 #MB
+db_log_retention_days: 90
 
 bot:
     token: # Your bot token here
