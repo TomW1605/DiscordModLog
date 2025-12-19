@@ -633,7 +633,11 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
 @bot.tree.command(description="View the moderation history of a user")
 @app_commands.guild_only()
 @app_commands.describe(user="User to view history for")
-async def history(interaction: discord.Interaction, user: discord.Member | discord.User) -> None:
+async def history(
+        interaction: discord.Interaction,
+        user: discord.Member | discord.User,
+        days_to_lookback: Optional[int] = 30
+) -> None:
     guild = interaction.guild
     log_channel = guild.get_channel(get_log_channel_id(guild.id))
 
@@ -653,7 +657,7 @@ async def history(interaction: discord.Interaction, user: discord.Member | disco
         session.query(Log)
         .filter(Log.guild_id == guild.id)
         .filter(Log.target_user_id == user.id)
-        .filter(Log.log_time >= datetime.now() - timedelta(days=30))
+        .filter(Log.log_time >= datetime.now() - timedelta(days=days_to_lookback))
         .all()
     )
 
@@ -681,7 +685,7 @@ async def history(interaction: discord.Interaction, user: discord.Member | disco
         session.query(Log.action_type, func.count(Log.action_type))
         .filter(Log.guild_id == guild.id)
         .filter(Log.target_user_id == user.id)
-        .filter(Log.log_time >= datetime.now() - timedelta(days=30))
+        .filter(Log.log_time >= datetime.now() - timedelta(days=days_to_lookback))
         .group_by(Log.action_type)
         .all()
     )
