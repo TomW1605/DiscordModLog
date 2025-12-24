@@ -636,10 +636,12 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
 async def history(
         interaction: discord.Interaction,
         user: discord.Member | discord.User,
-        days_to_lookback: Optional[int] = 30
+        days: Optional[int] = 30
 ) -> None:
     guild = interaction.guild
     log_channel = guild.get_channel(get_log_channel_id(guild.id))
+    start_date = datetime.now() - timedelta(days=days)
+    start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
     embed = discord.Embed(
         timestamp=interaction.created_at,
@@ -653,11 +655,13 @@ async def history(
     if not isinstance(user, discord.Member):
         embed.description += f"\n**User is not currently a member of this server**"
 
+    embed.description += f"\n**History since {start_date.strftime('%Y-%m-%d')}:**"
+
     user_history = (
         session.query(Log)
         .filter(Log.guild_id == guild.id)
         .filter(Log.target_user_id == user.id)
-        .filter(Log.log_time >= datetime.now() - timedelta(days=days_to_lookback))
+        .filter(Log.log_time >= start_date)
         .all()
     )
 
@@ -685,7 +689,7 @@ async def history(
         session.query(Log.action_type, func.count(Log.action_type))
         .filter(Log.guild_id == guild.id)
         .filter(Log.target_user_id == user.id)
-        .filter(Log.log_time >= datetime.now() - timedelta(days=days_to_lookback))
+        .filter(Log.log_time >= start_date)
         .group_by(Log.action_type)
         .all()
     )
