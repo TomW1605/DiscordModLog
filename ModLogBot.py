@@ -632,7 +632,10 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
 
 @bot.tree.command(description="View the moderation history of a user")
 @app_commands.guild_only()
-@app_commands.describe(user="User to view history for")
+@app_commands.describe(
+    user="User to view history for",
+    days="Number of days to include in history (default: 30)"
+)
 async def history(
         interaction: discord.Interaction,
         user: discord.Member | discord.User,
