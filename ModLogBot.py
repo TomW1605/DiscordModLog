@@ -359,14 +359,14 @@ async def on_audit_log_entry_create(entry):
     log_data = {}
 
     if entry.action == discord.AuditLogAction.ban:
-        embed.title="🚨 Baned"
+        embed.title="🚨 Banned"
         embed.colour=discord.Colour.red()
         embed.description += f"\n**Reason:** {entry.reason or 'No reason provided.'}"
         action_type = ActionType.BAN
         log_data["reason"] = entry.reason
 
     elif entry.action == discord.AuditLogAction.unban:
-        embed.title="✅ Unbaned"
+        embed.title="✅ Unbanned"
         embed.colour=discord.Colour.red()
         action_type = ActionType.UNBAN
 
