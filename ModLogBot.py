@@ -571,7 +571,7 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
 
     embed = discord.Embed(
         timestamp=interaction.created_at,
-        title=f"⚠️ Warning Issued",
+        title=f"⚠️ Warning Logged",
         description="",
         colour=discord.Colour.yellow()
     )
