@@ -2,12 +2,6 @@
 FROM python:3.12
 LABEL authors="Thomas White"
 
-ARG DATE
-ENV BUILD_DATE=$DATE
-
-ARG VCS_REF
-ENV VERSION=$VCS_REF
-
 # Install dependencies
 RUN pip3 install discord.py sqlalchemy pyaml alembic pydantic
 
@@ -19,6 +13,13 @@ COPY . /app
 
 # Create the config directory for the database file
 RUN mkdir -p /config
+
+# LEAVE THESE AT THE BOTTOM TO AVOID REBUILDING THE ENTIRE IMAGE EVERY TIME
+ARG DATE
+ENV BUILD_DATE=$DATE
+
+ARG VCS_REF
+ENV VERSION=$VCS_REF
 
 # Run the command to start the Flask application
 CMD ["python", "-u", "ModLogBot.py"]
