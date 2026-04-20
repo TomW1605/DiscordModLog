@@ -665,7 +665,7 @@ async def history(
     if not isinstance(user, discord.Member):
         embed.description += f"\n**User is not currently a member of this server**"
 
-    embed.description += f"\n**History since {start_date.strftime('%Y-%m-%d')}:**"
+    embed.description += f"\n**History since:** {start_date.strftime('%Y-%m-%d')}"
 
     user_history = (
         session.query(Log)
