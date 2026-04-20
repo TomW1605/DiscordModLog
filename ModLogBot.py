@@ -643,6 +643,13 @@ async def history(
 ) -> None:
     guild = interaction.guild
     log_channel = guild.get_channel(get_log_channel_id(guild.id))
+
+    oldest_log = session.query(Log).filter(Log.guild_id == guild.id).order_by(Log.log_time.asc()).first()
+    if oldest_log:
+        log_age_days = (datetime.now() - oldest_log.log_time).days
+        if days > log_age_days:
+            days = log_age_days
+
     start_date = datetime.now() - timedelta(days=days)
     start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
