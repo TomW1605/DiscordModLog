@@ -691,9 +691,9 @@ async def history(
 
         if action_text:
             if guild.id and get_log_channel_id(guild.id) and item.log_message_id:
-                embed.description += f"\n**{action_text}:**  https://discord.com/channels/{guild.id}/{get_log_channel_id(guild.id)}/{item.log_message_id}"
+                embed.description += f"\n[{item.log_time.strftime('%Y-%m-%d')}] {action_text}:  https://discord.com/channels/{guild.id}/{get_log_channel_id(guild.id)}/{item.log_message_id}"
             else:
-                embed.description += f"\n**{action_text}**"
+                embed.description += f"\n[{item.log_time.strftime('%Y-%m-%d')}] {action_text}"
 
     results = (
         session.query(Log.action_type, func.count(Log.action_type))
