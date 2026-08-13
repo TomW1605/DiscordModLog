@@ -44,6 +44,7 @@ class ActionType:
     MESSAGE_DELETE = 9
     WARNING = 10
     NICKNAME_CHANGED = 11
+    BULK_MESSAGE_DELETE = 12
 
 need_reason = [
     ActionType.MUTED,
@@ -52,7 +53,8 @@ need_reason = [
     ActionType.NICKNAME_CHANGED,
     ActionType.BAN,
     ActionType.KICK,
-    ActionType.TIMEOUT
+    ActionType.TIMEOUT,
+    ActionType.BULK_MESSAGE_DELETE
 ]
 
 class Config_AutoMessageRemoval(BaseModel):
@@ -444,7 +446,11 @@ async def on_audit_log_entry_create(entry):
         )
         actions = {action_type: count for action_type, count in results}
         warnings = actions.get(ActionType.WARNING, 0)
-        deleted_messages = actions.get(ActionType.MESSAGE_DELETE, 0) + (1 if action_type == ActionType.MESSAGE_DELETE else 0)
+        deleted_messages = (
+            actions.get(ActionType.MESSAGE_DELETE, 0)
+            + actions.get(ActionType.BULK_MESSAGE_DELETE, 0)
+            + (1 if action_type == ActionType.MESSAGE_DELETE else 0)
+        )
         timeouts = actions.get(ActionType.TIMEOUT, 0) + (1 if action_type == ActionType.TIMEOUT else 0)
         kicks = actions.get(ActionType.KICK, 0) + (1 if action_type == ActionType.KICK else 0)
         bans = actions.get(ActionType.BAN, 0) + (1 if action_type == ActionType.BAN else 0)
@@ -602,7 +608,7 @@ async def warn(interaction: discord.Interaction, user: discord.Member, reason: s
         )
         actions = {action_type: count for action_type, count in results}
         warnings = actions.get(ActionType.WARNING, 0) + 1
-        deleted_messages = actions.get(ActionType.MESSAGE_DELETE, 0)
+        deleted_messages = actions.get(ActionType.MESSAGE_DELETE, 0) + actions.get(ActionType.BULK_MESSAGE_DELETE, 0)
         timeouts = actions.get(ActionType.TIMEOUT, 0)
         kicks = actions.get(ActionType.KICK, 0)
         bans = actions.get(ActionType.BAN, 0)
@@ -687,6 +693,8 @@ async def history(
             action_text = "Timeout"
         elif action == ActionType.MESSAGE_DELETE:
             action_text = "Message Deleted"
+        elif action == ActionType.BULK_MESSAGE_DELETE:
+            action_text = "Bulk Message Delete"
         elif action == ActionType.WARNING:
             action_text = "Warning"
 
@@ -706,7 +714,7 @@ async def history(
     )
     actions = {action_type: count for action_type, count in results}
     warnings = actions.get(ActionType.WARNING, 0)
-    deleted_messages = actions.get(ActionType.MESSAGE_DELETE, 0)
+    deleted_messages = actions.get(ActionType.MESSAGE_DELETE, 0) + actions.get(ActionType.BULK_MESSAGE_DELETE, 0)
     timeouts = actions.get(ActionType.TIMEOUT, 0)
     kicks = actions.get(ActionType.KICK, 0)
     bans = actions.get(ActionType.BAN, 0)
@@ -867,10 +875,19 @@ async def purge(
             able_to_send = False
             print(f"Bot does not have permission to send messages and embed links in log channel '{log_channel.name}' ({log_channel.id}). Skipping log message.")
 
-    if channel.id in get_ignored_channels(guild.id):
+    ignored = channel.id in get_ignored_channels(guild.id)
+    if ignored:
         print(f"Message delete action ignored for channel `{channel.name} ({channel.id})` in guild `{guild.name} ({guild.id})`.")
         able_to_send = False
 
+    users = {}
+    for msg in purged:
+        if msg.author in users:
+            users[msg.author].append(msg)
+        else:
+            users[msg.author] = [msg]
+
+    message = None
     if able_to_send:
         embed = discord.Embed(
             timestamp=interaction.created_at,
@@ -878,17 +895,11 @@ async def purge(
             colour = discord.Colour.magenta(),
             description=""
         )
-    
+
         embed.description += f"\n**Moderator:** {interaction.user.nick or interaction.user.display_name} (<@{interaction.user.id}>)"
         embed.description += f"\n**Channel:** <#{channel.id}>"
         embed.description += f"\n**Reason:** {reason}"
 
-        users = {}
-        for msg in purged:
-            if msg.author in users:
-                users[msg.author].append(msg)
-            else:
-                users[msg.author] = [msg]
         embed.description += "\n**Users:**"
         for user in users:
             if isinstance(user, discord.Member):
@@ -904,13 +915,34 @@ async def purge(
                         embed.description += f"\n - <@{user.id}>: {len(users[user])}"
                 except discord.NotFound:
                     embed.description += f"\n - <@{user.id}> (User not found): {len(users[user])}"
-    
+
         comment = ""
         if reason is None:
             comment = f"Hey <@{interaction.user.id}>, can you add some context to this action?"
         message = await log_channel.send(comment, embed=embed)
 
+    if not ignored:
+        for author, msgs in users.items():
+            log_entry = Log(
+                log_time=interaction.created_at,
+                guild_id=guild.id,
+                mod_user_id=interaction.user.id,
+                target_user_id=author.id,
+                log_message_id=message.id if message else None,
+                action_type=ActionType.BULK_MESSAGE_DELETE,
+                log_data={
+                    "channel_id": channel.id,
+                    "reason": reason,
+                    "message_count": len(msgs),
+                },
+            )
+            session.add(log_entry)
+        session.commit()
+
     await interaction.followup.send(f"deleted {len(purged)} messages", ephemeral=True)
+
+    delete_old_logs()
+    await check_db_size()
 
 @bot.tree.command(description="Check the bot version and build date")
 async def version(interaction: discord.Interaction) -> None:
