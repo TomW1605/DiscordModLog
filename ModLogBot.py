@@ -152,7 +152,7 @@ class Log(Base):
     log_id = Column(Integer, primary_key=True, autoincrement=True)
     log_time = Column(DateTime, nullable=False)
     guild_id = Column(Integer, nullable=False)
-    mod_user_id = Column(Integer, nullable=False)
+    mod_user_id = Column(Integer, nullable=True)
     target_user_id = Column(Integer, nullable=True)
     log_message_id = Column(Integer, nullable=True)
     action_type = Column(Integer, nullable=False)
