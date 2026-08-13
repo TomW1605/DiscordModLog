@@ -820,47 +820,50 @@ def str_to_msg_id(value: str) -> int | None:
             pass
     return None
 
-@bot.tree.command()
+@bot.tree.command(description="Bulk delete messages in this channel")
 @app_commands.guild_only()
-# @app_commands.describe(
-#     user="User to view history for",
-#     days="Number of days to include in history (default: 30)"
-# )
+@app_commands.describe(
+    reason="Reason for the purge",
+    count="Number of messages to delete",
+    start_message="Message ID or link to start purging from (inclusive)",
+    end_message="Message ID or link to stop purging at (inclusive)",
+    user="Only delete messages sent by this user"
+)
 async def purge(
         interaction: discord.Interaction,
         reason: str,
-        number: Optional[int] = None,
-        from_msg: Optional[str] = None,
-        to_msg: Optional[str] = None,
-        from_user: Optional[discord.User] = None,
+        count: Optional[int] = None,
+        start_message: Optional[str] = None,
+        end_message: Optional[str] = None,
+        user: Optional[discord.User] = None,
 ) -> None:
-    if all(v is None for v in (number, from_msg)):
-        await interaction.response.send_message("Please provide at least a number or a start message for the /purge command", ephemeral=True)
+    if all(v is None for v in (count, start_message)):
+        await interaction.response.send_message("Please provide at least a count or a start message for the /purge command", ephemeral=True)
         return
 
-    if from_msg is not None:
-        from_msg = str_to_msg_id(from_msg)
-        if from_msg is None:
-            await interaction.response.send_message("invalid value provided for `from_msg`, please provide either a message id or a message link", ephemeral=True)
+    if start_message is not None:
+        start_message = str_to_msg_id(start_message)
+        if start_message is None:
+            await interaction.response.send_message("invalid value provided for `start_message`, please provide either a message id or a message link", ephemeral=True)
             return
-        from_msg = discord.Object(id=from_msg-1)
+        start_message = discord.Object(id=start_message-1)
 
-    if to_msg is not None:
-        to_msg = str_to_msg_id(to_msg)
-        if to_msg is None:
-            await interaction.response.send_message("invalid value provided for `to_msg`, please provide either a message id or a message link", ephemeral=True)
+    if end_message is not None:
+        end_message = str_to_msg_id(end_message)
+        if end_message is None:
+            await interaction.response.send_message("invalid value provided for `end_message`, please provide either a message id or a message link", ephemeral=True)
             return
-        to_msg = discord.Object(id=to_msg+1)
+        end_message = discord.Object(id=end_message+1)
 
     def is_user(message):
-        if from_user:
-            return message.author.id == from_user.id
+        if user:
+            return message.author.id == user.id
         return True
 
     await interaction.response.defer(ephemeral=True)
 
     channel = interaction.channel
-    purged = await channel.purge(limit=number, after=from_msg, before=to_msg, check=is_user)
+    purged = await channel.purge(limit=count, after=start_message, before=end_message, check=is_user)
 
     guild = interaction.guild
     log_channel = guild.get_channel(get_log_channel_id(guild.id))
@@ -901,20 +904,20 @@ async def purge(
         embed.description += f"\n**Reason:** {reason}"
 
         embed.description += "\n**Users:**"
-        for user in users:
-            if isinstance(user, discord.Member):
-                embed.description += f"\n - {user.nick or user.display_name} (<@{user.id}>): {len(users[user])}"
-            elif isinstance(user, discord.User):
-                embed.description += f"\n - {user.display_name} (<@{user.id}>): {len(users[user])}"
-            elif hasattr(user, 'id'):
+        for author in users:
+            if isinstance(author, discord.Member):
+                embed.description += f"\n - {author.nick or author.display_name} (<@{author.id}>): {len(users[author])}"
+            elif isinstance(author, discord.User):
+                embed.description += f"\n - {author.display_name} (<@{author.id}>): {len(users[author])}"
+            elif hasattr(author, 'id'):
                 try:
-                    user = await bot.fetch_user(user.id)
-                    if user:
-                        embed.description += f"\n - {user.display_name} (<@{user.id}>): {len(users[user])}"
+                    author = await bot.fetch_user(author.id)
+                    if author:
+                        embed.description += f"\n - {author.display_name} (<@{author.id}>): {len(users[author])}"
                     else:
-                        embed.description += f"\n - <@{user.id}>: {len(users[user])}"
+                        embed.description += f"\n - <@{author.id}>: {len(users[author])}"
                 except discord.NotFound:
-                    embed.description += f"\n - <@{user.id}> (User not found): {len(users[user])}"
+                    embed.description += f"\n - <@{author.id}> (User not found): {len(users[author])}"
 
         comment = ""
         if reason is None:
