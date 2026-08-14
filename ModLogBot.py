@@ -822,6 +822,7 @@ def str_to_msg_id(value: str) -> int | None:
 
 @bot.tree.command(description="Bulk delete messages in this channel")
 @app_commands.guild_only()
+@app_commands.checks.bot_has_permissions(view_channel=True, manage_messages=True, read_message_history=True)
 @app_commands.describe(
     reason="Reason for the purge",
     count="Number of messages to delete",
@@ -863,9 +864,15 @@ async def purge(
     await interaction.response.defer(ephemeral=True)
 
     channel = interaction.channel
-    purged = await channel.purge(limit=count, after=start_message, before=end_message, check=is_user)
-
     guild = interaction.guild
+
+    try:
+        purged = await channel.purge(limit=count, after=start_message, before=end_message, check=is_user)
+    except discord.Forbidden:
+        print(f"Failed to purge messages in channel '{channel.name}' ({channel.id}) in guild '{guild.name}' ({guild.id}) due to a permissions error, despite the bot_has_permissions check passing (permissions may have changed mid-command).")
+        await interaction.followup.send("I don't have permission to delete messages in this channel. Please check my `View Channel`, `Manage Messages`, and `Read Message History` permissions.", ephemeral=True)
+        return
+
     log_channel = guild.get_channel(get_log_channel_id(guild.id))
 
     able_to_send = True
@@ -946,6 +953,17 @@ async def purge(
 
     delete_old_logs()
     await check_db_size()
+
+@purge.error
+async def purge_error(interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
+    if isinstance(error, app_commands.BotMissingPermissions):
+        channel = interaction.channel
+        guild = interaction.guild
+        missing = ", ".join(f"`{perm.replace('_', ' ').title()}`" for perm in error.missing_permissions)
+        print(f"Missing permissions ({missing}) to purge messages in channel '{channel.name}' ({channel.id}) in guild '{guild.name}' ({guild.id}).")
+        await interaction.response.send_message(f"I'm missing the following permissions in this channel: {missing}", ephemeral=True)
+        return
+    raise error
 
 @bot.tree.command(description="Check the bot version and build date")
 async def version(interaction: discord.Interaction) -> None:
