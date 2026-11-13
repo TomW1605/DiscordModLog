@@ -45,6 +45,8 @@ class ActionType:
     WARNING = 10
     NICKNAME_CHANGED = 11
     BULK_MESSAGE_DELETE = 12
+    ROLE_ADDED = 13
+    ROLE_REMOVED = 14
 
 need_reason = [
     ActionType.MUTED,
@@ -54,7 +56,8 @@ need_reason = [
     ActionType.BAN,
     ActionType.KICK,
     ActionType.TIMEOUT,
-    ActionType.BULK_MESSAGE_DELETE
+    ActionType.BULK_MESSAGE_DELETE,
+    ActionType.ROLE_REMOVED,
 ]
 
 class Config_AutoMessageRemoval(BaseModel):
@@ -129,7 +132,15 @@ def load_servers():
                         ignored_channels.append(int(ignored_channel))
                     except (ValueError, TypeError):
                         print(f"Ignored Channel ID `{ignored_channel}` is not a valid channel ID. Skipping channel.")
-            
+
+            tracked_roles = []
+            if config["servers"][server].get("tracked_roles"):
+                for tracked_role in config["servers"][server]["tracked_roles"]:
+                    try:
+                        tracked_roles.append(int(tracked_role))
+                    except (ValueError, TypeError):
+                        print(f"Tracked Role ID `{tracked_role}` is not a valid role ID. Skipping role.")
+
             auto_message_removals = []
             if "auto_message_removals" in config["servers"][server]:
                 for auto_message_removal in config["servers"][server]["auto_message_removals"]:
@@ -141,6 +152,7 @@ def load_servers():
                 "report_channel_id": report_channel_id,
                 "report_role_ping_id": report_role_ping_id,
                 "ignored_channels": ignored_channels,
+                "tracked_roles": tracked_roles,
                 "auto_message_removals": auto_message_removals,
             }
     return servers
@@ -285,6 +297,15 @@ def get_ignored_channels(server_id: int):
     except TypeError:
         return []
 
+def get_tracked_roles(server_id: int):
+    try:
+        return get_server(server_id)['tracked_roles']
+    except KeyError:
+        # No debug log if not found
+        return []
+    except TypeError:
+        return []
+
 def get_auto_message_removals(server_id: int) -> List[Config_AutoMessageRemoval]:
     try:
         return get_server(server_id)['auto_message_removals']
@@ -416,6 +437,41 @@ async def on_audit_log_entry_create(entry):
 
             log_data["old_nick"] = entry.before.nick or user.display_name
             log_data["new_nick"] = entry.after.nick or user.display_name
+
+    elif entry.action == discord.AuditLogAction.member_role_update:
+        # Ignore bots (e.g. auto-roles applied on join) and members changing their own roles
+        if entry.user.bot or entry.user.id == entry.target.id:
+            return
+
+        # For role updates, `after.roles` holds the roles added and `before.roles` the roles removed
+        tracked_roles = get_tracked_roles(guild.id)
+        added_role_ids = [role.id for role in getattr(entry.after, "roles", None) or [] if role.id in tracked_roles]
+        removed_role_ids = [role.id for role in getattr(entry.before, "roles", None) or [] if role.id in tracked_roles]
+        if not added_role_ids and not removed_role_ids:
+            return
+
+        if added_role_ids and removed_role_ids:
+            embed.title = "🎭 Roles Changed"
+            embed.colour = discord.Colour.blue()
+            action_type = ActionType.ROLE_REMOVED
+        elif removed_role_ids:
+            embed.title = "🎭 Role Removed"
+            embed.colour = discord.Colour.blue()
+            action_type = ActionType.ROLE_REMOVED
+        else:
+            embed.title = "🎭 Role Added"
+            embed.colour = discord.Colour.blue()
+            action_type = ActionType.ROLE_ADDED
+
+        if added_role_ids:
+            embed.description += f"\n**Added:** {', '.join(f'<@&{role_id}>' for role_id in added_role_ids)}"
+        if removed_role_ids:
+            embed.description += f"\n**Removed:** {', '.join(f'<@&{role_id}>' for role_id in removed_role_ids)}"
+        embed.description += f"\n**Reason:** {entry.reason or 'No reason provided.'}"
+
+        log_data["added_role_ids"] = added_role_ids
+        log_data["removed_role_ids"] = removed_role_ids
+        log_data["reason"] = entry.reason
 
     elif entry.action == discord.AuditLogAction.member_disconnect:
         embed.title="🔊 Disconnected From Voice"
@@ -697,6 +753,13 @@ async def history(
             action_text = "Bulk Message Delete"
         elif action == ActionType.WARNING:
             action_text = "Warning"
+        elif action in (ActionType.ROLE_ADDED, ActionType.ROLE_REMOVED):
+            log_data = item.log_data or {}
+            role_changes = [f"+<@&{role_id}>" for role_id in log_data.get("added_role_ids", [])]
+            role_changes += [f"-<@&{role_id}>" for role_id in log_data.get("removed_role_ids", [])]
+            action_text = "Role Added" if action == ActionType.ROLE_ADDED else "Role Removed"
+            if role_changes:
+                action_text += f" ({', '.join(role_changes)})"
 
         if action_text:
             if guild.id and get_log_channel_id(guild.id) and item.log_message_id:

@@ -13,6 +13,9 @@ servers:
         ignored_channels:
             - # List of channel IDs to ignore, e.g., 123456789012345678
             - # Another channel ID to ignore
+        tracked_roles: # Optional. Role IDs whose add/remove by a moderator is logged (e.g. external emoji perms). Changes made by bots are ignored
+            - # Role ID to track, e.g., 123456789012345678
+            - # Another role ID to track
         auto_message_removals:
             - channel_id: # Required integer: Channel ID to monitor for new messages to remove
               regex_matching: # Optional string: RegEx pattern to match against posted message; if both regex tests pass, message will be removed
